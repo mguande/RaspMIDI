@@ -1,0 +1,48 @@
+{
+  "midi": {
+    "input_device": "Chocolate MIDI In",
+    "output_device": "Zoom G3X MIDI Out",
+    "auto_detect": true,
+    "fallback_devices": [
+      "USB MIDI Device",
+      "MIDI Device",
+      "USB Audio Device"
+    ]
+  },
+  "bluetooth": {
+    "enabled": false,
+    "device_name": "RaspMIDI",
+    "pin": "1234"
+  },
+  "cache": {
+    "timeout": 300,
+    "max_size": 100
+  },
+  "raspberry_pi": {
+    "wifi_hotspot": true,
+    "autostart": true,
+    "host": "0.0.0.0",
+    "port": 5000,
+    "debug": false,
+    "log_level": "INFO",
+    "log_file": "logs/raspmidi.log",
+    "max_log_size": "10MB",
+    "backup_count": 5
+  },
+  "web": {
+    "title": "RaspMIDI Controller",
+    "theme": "dark",
+    "auto_refresh": true,
+    "refresh_interval": 5000
+  },
+  "security": {
+    "enable_auth": false,
+    "username": "admin",
+    "password": "raspmidi2024"
+  },
+  "performance": {
+    "max_connections": 10,
+    "timeout": 30,
+    "keep_alive": true
+  }
+} 
