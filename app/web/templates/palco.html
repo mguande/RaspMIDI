@@ -2,7 +2,8 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>RaspMIDI - Modo Palco</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RaspMIDI - Palco</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         body { 
@@ -11,32 +12,34 @@
             font-family: 'Segoe UI', Arial, sans-serif; 
             margin: 0;
             padding: 0;
+            font-size: 14px;
         }
         
         .palco-container { 
-            max-width: 1200px; 
+            max-width: 100%; 
             margin: 0 auto; 
-            padding: 20px; 
+            padding: 10px; 
             position: relative;
         }
         
         .back-btn {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 10px;
+            right: 10px;
             background: #2d8cff;
             color: #fff;
             border: none;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
             cursor: pointer;
             transition: all 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 100;
         }
         
         .back-btn:hover { 
@@ -44,77 +47,93 @@
             transform: scale(1.1);
         }
         
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding-top: 20px;
-        }
-        
-        .header h1 {
-            font-size: 2.5rem;
-            margin: 0;
-            color: #ffb300;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-        
-        .active-patch-info {
+        .active-bank-info {
             background: #23283a;
-            border-radius: 1rem;
-            padding: 2rem;
-            margin-bottom: 2rem;
+            border-radius: 0.8rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
             text-align: center;
             box-shadow: 0 4px 16px rgba(0,0,0,0.3);
             border: 2px solid #ffb300;
         }
         
-        .active-patch-name {
-            font-size: 2rem;
+        .active-bank-name {
+            font-size: 1.8rem;
             font-weight: bold;
             color: #ffb300;
+            margin-bottom: 0.5rem;
+        }
+        
+        .active-bank-description {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+        
+        .active-patch-info {
+            background: #1a1e2a;
+            border-radius: 0.8rem;
+            padding: 1rem;
             margin-bottom: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+        }
+        
+        .active-patch-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #0f0;
+            margin-bottom: 0.5rem;
         }
         
         .active-patch-details {
-            font-size: 1.1rem;
+            font-size: 0.8rem;
             color: #ccc;
+        }
+        
+        .no-active-patch {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            padding: 1rem;
+            font-size: 0.9rem;
         }
         
         .devices-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
         }
         
         .device-box { 
             background: #1a1e2a; 
-            border-radius: 1rem; 
-            padding: 2rem; 
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            border-radius: 0.8rem; 
+            padding: 1rem; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             border: 1px solid #333;
             transition: all 0.3s;
         }
         
         .device-box:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
             border-color: #ffb300;
         }
         
         .device-title { 
-            font-size: 1.4rem; 
+            font-size: 1.1rem; 
             font-weight: bold; 
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.8rem;
             color: #ffb300;
             text-align: center;
         }
         
         .device-status {
             text-align: center;
-            margin-bottom: 1.5rem;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
+            margin-bottom: 0.8rem;
+            padding: 0.3rem;
+            border-radius: 0.3rem;
             font-weight: bold;
+            font-size: 0.8rem;
         }
         
         .status-connected {
@@ -130,15 +149,16 @@
         }
         
         .device-info {
-            margin-bottom: 1rem;
+            margin-bottom: 0.8rem;
         }
         
         .info-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.5rem 0;
+            padding: 0.3rem 0;
             border-bottom: 1px solid #333;
+            font-size: 0.8rem;
         }
         
         .info-label {
@@ -152,13 +172,13 @@
         }
         
         .reconnect-btn { 
-            margin-top: 1rem; 
+            margin-top: 0.8rem; 
             background: #ff6b35; 
             color: #fff; 
             border: none; 
-            border-radius: 0.5rem; 
-            padding: 0.8rem 1.5rem; 
-            font-size: 1rem; 
+            border-radius: 0.3rem; 
+            padding: 0.5rem 1rem; 
+            font-size: 0.8rem; 
             font-weight: bold; 
             cursor: pointer; 
             transition: background 0.2s;
@@ -174,44 +194,26 @@
             cursor: not-allowed; 
         }
         
-        .no-active-patch {
+        .chocolate-status {
             text-align: center;
-            color: #888;
-            font-style: italic;
-            padding: 2rem;
-        }
-        
-        .chocolate-channels {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        
-        .channel-btn {
-            background: #333;
-            color: #fff;
-            border: 1px solid #555;
-            border-radius: 0.5rem;
             padding: 0.5rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.9rem;
+            background: rgba(255, 179, 0, 0.1);
+            border: 1px solid #ffb300;
+            border-radius: 0.3rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
         }
         
-        .channel-btn:hover {
-            background: #555;
-            border-color: #ffb300;
-        }
-        
-        .channel-btn.active {
-            background: #ffb300;
-            color: #000;
-            border-color: #ffb300;
-        }
-        
-        .channel-btn.has-patch {
+        .chocolate-status.ready {
+            background: rgba(0, 255, 0, 0.1);
             border-color: #0f0;
+            color: #0f0;
+        }
+        
+        .chocolate-status.waiting {
+            background: rgba(255, 179, 0, 0.1);
+            border-color: #ffb300;
+            color: #ffb300;
         }
     </style>
 </head>
@@ -219,8 +221,9 @@
     <div class="palco-container">
         <button class="back-btn" onclick="window.location.href='/'">←</button>
         
-        <div class="header">
-            <h1>🎸 Modo Palco</h1>
+        <div class="active-bank-info" id="active-bank-info">
+            <div class="active-bank-name" id="active-bank-name">Nenhum Banco Ativo</div>
+            <div class="active-bank-description" id="active-bank-description">Configure um banco ativo</div>
         </div>
         
         <div class="active-patch-info" id="active-patch-info">
@@ -240,22 +243,49 @@
     
     <script>
         let activePatch = null;
-        let chocolateChannels = [];
+        let activeBank = null;
         
         async function loadPalcoInfo() {
             try {
+                // Carrega informações do banco ativo
+                await loadActiveBankInfo();
+                
                 // Carrega informações do patch ativo
                 await loadActivePatchInfo();
                 
                 // Carrega dispositivos
                 await loadDevicesInfo();
                 
-                // Carrega canais do Chocolate MIDI
-                await loadChocolateChannels();
-                
             } catch (error) {
                 console.error('Erro ao carregar informações do palco:', error);
             }
+        }
+        
+        async function loadActiveBankInfo() {
+            try {
+                const response = await fetch('/api/midi/banks/active');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    activeBank = data.data;
+                    showActiveBank(activeBank);
+                } else {
+                    hideActiveBank();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar banco ativo:', error);
+                hideActiveBank();
+            }
+        }
+        
+        function showActiveBank(bank) {
+            document.getElementById('active-bank-name').textContent = bank.name;
+            document.getElementById('active-bank-description').textContent = bank.description || 'Banco ativo';
+        }
+        
+        function hideActiveBank() {
+            document.getElementById('active-bank-name').textContent = 'Nenhum Banco Ativo';
+            document.getElementById('active-bank-description').textContent = 'Configure um banco ativo';
         }
         
         async function loadActivePatchInfo() {
@@ -330,30 +360,29 @@
                 deviceInfo = `
                     <div class="device-info">
                         <div class="info-row">
-                            <span class="info-label">Banco Atual:</span>
+                            <span class="info-label">Banco:</span>
                             <span class="info-value">${bank}</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">Patch Atual:</span>
+                            <span class="info-label">Patch:</span>
                             <span class="info-value">${patch}</span>
                         </div>
                     </div>
                 `;
             } else if (dev.type === 'chocolate') {
-                // Para Chocolate: mostra canais disponíveis
+                // Para Chocolate: mostra status simplificado
+                const statusClass = dev.connected ? 'ready' : 'waiting';
+                const statusText = dev.connected ? 'Pronto para seleção' : 'Aguardando conexão';
+                
                 deviceInfo = `
                     <div class="device-info">
                         <div class="info-row">
                             <span class="info-label">Canais:</span>
                             <span class="info-value">1-16</span>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">Status:</span>
-                            <span class="info-value">${dev.connected ? 'Pronto' : 'Offline'}</span>
+                        <div class="chocolate-status ${statusClass}">
+                            ${statusText}
                         </div>
-                    </div>
-                    <div class="chocolate-channels" id="chocolate-channels">
-                        <!-- Canais serão renderizados aqui -->
                     </div>
                 `;
             }
@@ -374,110 +403,6 @@
             `;
             
             return box;
-        }
-        
-        async function loadChocolateChannels() {
-            try {
-                // Busca patches para cada canal do Chocolate MIDI
-                const channels = [];
-                
-                for (let channel = 1; channel <= 16; channel++) {
-                    const response = await fetch(`/api/patches/by_channel/${channel}`);
-                    const data = await response.json();
-                    
-                    channels.push({
-                        channel: channel,
-                        hasPatch: data.success && data.count > 0,
-                        patches: data.success ? data.data : []
-                    });
-                }
-                
-                chocolateChannels = channels;
-                renderChocolateChannels();
-                
-            } catch (error) {
-                console.error('Erro ao carregar canais do Chocolate:', error);
-            }
-        }
-        
-        function renderChocolateChannels() {
-            const container = document.getElementById('chocolate-channels');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            chocolateChannels.forEach(channelInfo => {
-                const btn = document.createElement('button');
-                btn.className = 'channel-btn';
-                if (channelInfo.hasPatch) {
-                    btn.classList.add('has-patch');
-                }
-                if (activePatch && activePatch.input_channel === channelInfo.channel) {
-                    btn.classList.add('active');
-                }
-                
-                btn.textContent = channelInfo.channel;
-                btn.onclick = () => selectChannel(channelInfo.channel, channelInfo.patches);
-                
-                container.appendChild(btn);
-            });
-        }
-        
-        async function selectChannel(channel, patches) {
-            try {
-                if (patches.length === 0) {
-                    alert(`Nenhum patch configurado para o canal ${channel}`);
-                    return;
-                }
-                
-                // Se há apenas um patch, usa ele diretamente
-                if (patches.length === 1) {
-                    await activatePatch(patches[0]);
-                } else {
-                    // Se há múltiplos patches, mostra seleção
-                    const patchNames = patches.map(p => p.name).join('\n');
-                    const selected = confirm(`Múltiplos patches encontrados para canal ${channel}:\n\n${patchNames}\n\nUsar o primeiro patch?`);
-                    
-                    if (selected) {
-                        await activatePatch(patches[0]);
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Erro ao selecionar canal:', error);
-                alert('Erro ao selecionar canal: ' + error.message);
-            }
-        }
-        
-        async function activatePatch(patch) {
-            try {
-                // Envia o patch para o dispositivo configurado
-                const response = await fetch('/api/midi/patch/load', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ patch_id: patch.id })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    activePatch = patch;
-                    showActivePatch(patch);
-                    renderChocolateChannels(); // Atualiza visual dos canais
-                    
-                    // Recarrega informações dos dispositivos para mostrar mudanças
-                    setTimeout(loadDevicesInfo, 1000);
-                    
-                } else {
-                    alert('Erro ao ativar patch: ' + (data.error || 'Erro desconhecido'));
-                }
-                
-            } catch (error) {
-                console.error('Erro ao ativar patch:', error);
-                alert('Erro ao ativar patch: ' + error.message);
-            }
         }
         
         // Função para reconectar Zoom G3X
@@ -529,8 +454,8 @@
         // Inicialização
         window.addEventListener('DOMContentLoaded', loadPalcoInfo);
         
-        // Atualiza a cada 5 segundos
-        setInterval(loadPalcoInfo, 5000);
+        // Atualiza a cada 3 segundos
+        setInterval(loadPalcoInfo, 3000);
     </script>
 </body>
 </html> 

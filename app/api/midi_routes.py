@@ -1289,4 +1289,60 @@ def zoom_complete_data():
         return jsonify({
             'success': False,
             'error': str(e)
-        }) 
+        })
+
+@midi_bp.route('/chocolate/channel/<int:channel>', methods=['POST'])
+def chocolate_channel_selected(channel):
+    """Detecta quando um canal do Chocolate MIDI foi selecionado e ativa o patch correspondente"""
+    try:
+        logger.info(f"🎹 Canal {channel} do Chocolate MIDI selecionado")
+        
+        # Busca patches para este canal
+        cache_manager = current_app.cache_manager
+        patches = cache_manager.get_patches()
+        
+        # Filtra patches que usam o canal especificado
+        matching_patches = []
+        for patch in patches:
+            if (patch.get('input_device') == 'Chocolate MIDI' and 
+                patch.get('input_channel') == channel):
+                matching_patches.append(patch)
+        
+        if not matching_patches:
+            logger.warning(f"⚠️ Nenhum patch encontrado para canal {channel}")
+            return jsonify({
+                'success': False,
+                'error': f'Nenhum patch configurado para canal {channel}'
+            }), 404
+        
+        # Se há múltiplos patches, usa o primeiro
+        selected_patch = matching_patches[0]
+        logger.info(f"✅ Patch selecionado: {selected_patch['name']} (ID: {selected_patch['id']})")
+        
+        # Ativa o patch
+        midi_controller = current_app.midi_controller
+        success = midi_controller.send_patch(selected_patch)
+        
+        if success:
+            logger.info(f"✅ Patch {selected_patch['name']} ativado com sucesso")
+            return jsonify({
+                'success': True,
+                'message': f'Patch {selected_patch["name"]} ativado',
+                'data': {
+                    'patch': selected_patch,
+                    'channel': channel
+                }
+            })
+        else:
+            logger.error(f"❌ Erro ao ativar patch {selected_patch['name']}")
+            return jsonify({
+                'success': False,
+                'error': 'Erro ao ativar patch'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao processar seleção de canal {channel}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500 
