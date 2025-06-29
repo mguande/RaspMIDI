@@ -211,6 +211,84 @@
             color: #0f0;
             border: 1px solid #0f0;
         }
+        
+        .chocolate-box {
+            background: #1a1e2a;
+            border: 2px solid #333;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            min-height: 200px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .chocolate-pedal-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-grow: 1;
+        }
+        
+        .chocolate-leds {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chocolate-led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid #555;
+            background: #333;
+            transition: all 0.3s ease;
+        }
+        
+        .chocolate-led.on {
+            background: #0f0;
+            box-shadow: 0 0 10px #0f0;
+            border-color: #0f0;
+        }
+        
+        .chocolate-led.off {
+            background: #333;
+            border-color: #555;
+        }
+        
+        .chocolate-display-wrapper {
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            margin: 0 1rem;
+            min-width: 80px;
+        }
+        
+        .chocolate-display {
+            font-family: 'Calculator', 'Courier New', monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+        }
+        
+        .chocolate-display.off {
+            color: #f00;
+            text-shadow: 0 0 5px #f00;
+        }
+        
+        /* Importa a fonte Calculator */
+        @font-face {
+            font-family: 'Calculator';
+            src: url('/static/fonts/Calculator.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
     </style>
 </head>
 <body>
@@ -241,21 +319,30 @@
         let activePatch = null;
         let activeBank = null;
         let midiMonitoringActive = false;
+        let lastActiveBankId = null; // Para controlar mudanças no banco ativo
         
         async function loadPalcoInfo() {
             try {
                 // Carrega informações do banco ativo
-                await loadActiveBankInfo();
+                const bankChanged = await loadActiveBankInfo();
                 
-                // Carrega informações do patch ativo
-                await loadActivePatchInfo();
-                
-                // Carrega dispositivos
-                await loadDevicesInfo();
-                
-                // Inicia monitoramento MIDI se não estiver ativo
-                if (!midiMonitoringActive) {
-                    await startMidiMonitoring();
+                // Só atualiza o resto se o banco ativo mudou
+                if (bankChanged) {
+                    console.log('🔄 Banco ativo mudou, recarregando informações...');
+                    
+                    // Carrega informações do patch ativo
+                    await loadActivePatchInfo();
+                    
+                    // Carrega dispositivos
+                    await loadDevicesInfo();
+                    
+                    // Inicia monitoramento MIDI se não estiver ativo
+                    if (!midiMonitoringActive) {
+                        await startMidiMonitoring();
+                    }
+                } else {
+                    // Se o banco não mudou, só atualiza o patch ativo (pode ter mudado por MIDI)
+                    await loadActivePatchInfo();
                 }
                 
             } catch (error) {
@@ -269,14 +356,36 @@
                 const data = await response.json();
                 
                 if (data.success && data.data) {
-                    activeBank = data.data;
-                    showActiveBank(activeBank);
+                    const newBank = data.data;
+                    const newBankId = newBank.id;
+                    
+                    // Verifica se o banco ativo mudou
+                    if (lastActiveBankId !== newBankId) {
+                        console.log(`🔄 Banco ativo mudou: ${lastActiveBankId} -> ${newBankId}`);
+                        activeBank = newBank;
+                        lastActiveBankId = newBankId;
+                        showActiveBank(activeBank);
+                        return true; // Indica que o banco mudou
+                    } else {
+                        // Banco não mudou
+                        return false;
+                    }
                 } else {
-                    hideActiveBank();
+                    // Se não há banco ativo
+                    if (lastActiveBankId !== null) {
+                        console.log('🔄 Banco ativo removido');
+                        lastActiveBankId = null;
+                        hideActiveBank();
+                        return true; // Indica mudança (banco foi removido)
+                    } else {
+                        hideActiveBank();
+                        return false; // Não mudou
+                    }
                 }
             } catch (error) {
                 console.error('Erro ao carregar banco ativo:', error);
                 hideActiveBank();
+                return false;
             }
         }
         
@@ -462,11 +571,13 @@
                     <div class="chocolate-leds">
                         <div class="chocolate-led" id="led-0"></div>
                         <div class="chocolate-led" id="led-1"></div>
-                        <div class="chocolate-led" id="led-2"></div>
-                        <div class="chocolate-led" id="led-3"></div>
                     </div>
                     <div class="chocolate-display-wrapper">
                         <span class="chocolate-display" id="chocolate-display">000</span>
+                    </div>
+                    <div class="chocolate-leds">
+                        <div class="chocolate-led" id="led-2"></div>
+                        <div class="chocolate-led" id="led-3"></div>
                     </div>
                 </div>
             `;
@@ -590,6 +701,11 @@
                     if (chocolatePatches.length > 0) {
                         const patch = chocolatePatches[0];
                         console.log(`✅ Patch encontrado: ${patch.name}`);
+                        
+                        // PRIMEIRO: Envia comando para a Zoom G3X
+                        await sendPatchToZoom(patch);
+                        
+                        // DEPOIS: Ativa o patch no sistema
                         await activatePatch(patch);
                     } else {
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
@@ -597,6 +713,45 @@
                 }
             } catch (error) {
                 console.error('Erro ao procurar patch por program:', error);
+            }
+        }
+        
+        async function sendPatchToZoom(patch) {
+            try {
+                console.log(`🎛️ Enviando patch ${patch.name} para Zoom G3X...`);
+                
+                // Verifica se o patch tem configuração da Zoom
+                if (patch.zoom_bank !== undefined && patch.zoom_patch !== undefined) {
+                    const bank = patch.zoom_bank;
+                    const patchNumber = patch.zoom_patch;
+                    
+                    console.log(`🎛️ Zoom Bank: ${bank}, Patch: ${patchNumber}`);
+                    
+                    // Envia comando Program Change para a Zoom
+                    const response = await fetch('/api/midi/pc', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            channel: 0,
+                            program: patchNumber
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log(`✅ Comando enviado para Zoom G3X: Bank ${bank}, Patch ${patchNumber}`);
+                    } else {
+                        console.error('❌ Erro ao enviar comando para Zoom G3X:', data.error);
+                    }
+                } else {
+                    console.log('⚠️ Patch não tem configuração da Zoom G3X');
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao enviar patch para Zoom G3X:', error);
             }
         }
         
@@ -632,9 +787,6 @@
                             }
                         }
                     }
-                    
-                    // Recarrega informações dos dispositivos para mostrar mudanças
-                    setTimeout(loadDevicesInfo, 1000);
                     
                     console.log(`✅ Patch ${patch.name} ativado com sucesso`);
                 } else {
@@ -695,8 +847,8 @@
         // Inicialização
         window.addEventListener('DOMContentLoaded', loadPalcoInfo);
         
-        // Atualiza a cada 3 segundos para manter informações atualizadas
-        setInterval(loadPalcoInfo, 3000);
+        // Atualiza a cada 10 segundos para verificar mudanças no banco ativo
+        setInterval(loadPalcoInfo, 10000);
     </script>
 </body>
 </html> 
