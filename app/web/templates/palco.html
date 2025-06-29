@@ -691,11 +691,11 @@
                 }
             }
             
-            // Atualiza display
+            // Atualiza display - mostra o número real do banco (0, 1, 2, 3, etc.)
             const display = document.getElementById('chocolate-display');
             if (display) {
                 if (connected) {
-                    display.textContent = ('' + (bankNumber + 1)).padStart(3, '0');
+                    display.textContent = ('' + bankNumber).padStart(3, '0');
                     display.classList.remove('off');
                 } else {
                     display.textContent = 'OFF';
@@ -714,7 +714,7 @@
         function updateZoomDisplay(bank, patch, connected) {
             const display = document.getElementById('zoom-display');
             if (display) {
-                let displayText = 'OFF';
+                let displayText = '---';
                 if (connected && bank !== '-' && patch !== '-') {
                     // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
                     const bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
@@ -780,10 +780,11 @@
         
         function processMidiCommand(command) {
             console.log('🎹 Comando MIDI recebido:', command);
-            
+            alert('🎹 Comando MIDI recebido: ' + JSON.stringify(command));
             // Se for um Program Change do Chocolate, busca e ativa o patch correspondente
             if (command.type === 'program_change' && command.program !== undefined) {
                 console.log(`🎹 Program Change detectado: ${command.program}`);
+                alert(`🎹 Program Change detectado: ${command.program}`);
                 findAndActivatePatchByProgram(command.program);
             }
         }
@@ -791,6 +792,7 @@
         async function findAndActivatePatchByProgram(program) {
             try {
                 console.log(`🔍 Procurando patch com program ${program}...`);
+                alert(`🔍 Procurando patch com program ${program}...`);
                 
                 const response = await fetch('/api/patches');
                 const data = await response.json();
@@ -804,6 +806,7 @@
                     if (chocolatePatches.length > 0) {
                         const patch = chocolatePatches[0];
                         console.log(`✅ Patch encontrado: ${patch.name}`);
+                        alert(`✅ Patch encontrado: ${patch.name}`);
                         
                         // PRIMEIRO: Envia comando para a Zoom G3X
                         await sendPatchToZoom(patch);
@@ -812,16 +815,19 @@
                         await activatePatch(patch);
                     } else {
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
+                        alert(`❌ Nenhum patch encontrado para program ${program}`);
                     }
                 }
             } catch (error) {
                 console.error('Erro ao procurar patch por program:', error);
+                alert('Erro ao procurar patch por program: ' + error);
             }
         }
         
         async function sendPatchToZoom(patch) {
             try {
                 console.log(`🎛️ Enviando patch ${patch.name} para Zoom G3X...`);
+                alert(`🎛️ Enviando patch ${patch.name} para Zoom G3X...`);
                 
                 // Verifica se o patch tem configuração da Zoom
                 if (patch.zoom_bank !== undefined && patch.zoom_patch !== undefined) {
@@ -829,6 +835,7 @@
                     const patchNumber = patch.zoom_patch;
                     
                     console.log(`🎛️ Zoom Bank: ${bank}, Patch: ${patchNumber}`);
+                    alert(`🎛️ Zoom Bank: ${bank}, Patch: ${patchNumber}`);
                     
                     // Envia comando Program Change para a Zoom
                     const response = await fetch('/api/midi/pc', {
@@ -846,21 +853,26 @@
                     
                     if (data.success) {
                         console.log(`✅ Comando enviado para Zoom G3X: Bank ${bank}, Patch ${patchNumber}`);
+                        alert(`✅ Comando enviado para Zoom G3X: Bank ${bank}, Patch ${patchNumber}`);
                     } else {
                         console.error('❌ Erro ao enviar comando para Zoom G3X:', data.error);
+                        alert('❌ Erro ao enviar comando para Zoom G3X: ' + data.error);
                     }
                 } else {
                     console.log('⚠️ Patch não tem configuração da Zoom G3X');
+                    alert('⚠️ Patch não tem configuração da Zoom G3X');
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao enviar patch para Zoom G3X:', error);
+                alert('❌ Erro ao enviar patch para Zoom G3X: ' + error);
             }
         }
         
         async function activatePatch(patch) {
             try {
                 console.log(`🎹 Ativando patch: ${patch.name}`);
+                alert(`🎹 Ativando patch: ${patch.name}`);
                 
                 // Ativa o patch via API
                 const response = await fetch('/api/midi/patch/load', {
@@ -874,6 +886,8 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    console.log('✅ Patch ativado no sistema');
+                    alert('✅ Patch ativado no sistema');
                     activePatch = patch;
                     showActivePatch(patch);
                     
@@ -891,13 +905,25 @@
                         }
                     }
                     
-                    console.log(`✅ Patch ${patch.name} ativado com sucesso`);
+                    // Atualiza o display do Zoom se o patch tiver configuração da Zoom
+                    if (patch.zoom_bank !== undefined && patch.zoom_patch !== undefined) {
+                        // Busca o status de conexão da Zoom
+                        const devicesResponse = await fetch('/api/midi/devices/status_detailed');
+                        const devicesData = await devicesResponse.json();
+                        if (devicesData.success) {
+                            const zoomDevice = devicesData.data.find(dev => dev.type === 'zoom_g3x');
+                            if (zoomDevice) {
+                                updateZoomDisplay(patch.zoom_bank, patch.zoom_patch, zoomDevice.connected);
+                            }
+                        }
+                    }
                 } else {
                     console.error('❌ Erro ao ativar patch:', data.error);
+                    alert('❌ Erro ao ativar patch: ' + data.error);
                 }
-                
             } catch (error) {
                 console.error('❌ Erro ao ativar patch:', error);
+                alert('❌ Erro ao ativar patch: ' + error);
             }
         }
         
