@@ -1151,11 +1151,11 @@ def test_zoom_patch_names(bank_letter):
 def zoom_complete_data():
     """Análise completa de todos os dados da Zoom G3X"""
     try:
-        from app.midi.zoom_g3x import ZoomG3X
+        from app.midi.zoom_g3x import ZoomG3XController
         import mido
         
         # Inicializa o controlador da Zoom
-        zoom = ZoomG3X()
+        zoom = ZoomG3XController()
         
         # Informações gerais
         device_connected = False
@@ -1180,20 +1180,32 @@ def zoom_complete_data():
         
         for bank in ['A', 'B', 'C']:
             try:
-                patches = zoom.get_patches(bank)
-                real_names = [p for p in patches if not p['name'].startswith('Patch ')]
-                generic_names = [p for p in patches if p['name'].startswith('Patch ')]
+                # Converte letra do banco para número
+                bank_mapping = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9}
+                bank_number = bank_mapping[bank]
                 
-                banks_data[bank] = {
-                    'total_patches': len(patches),
-                    'real_names_count': len(real_names),
-                    'generic_names_count': len(generic_names),
-                    'real_names': real_names[:5],  # Primeiros 5 nomes reais
-                    'generic_names': generic_names[:3],  # Primeiros 3 nomes genéricos
-                    'patches': patches
-                }
-                
-                total_real_names += len(real_names)
+                patches = zoom.get_bank_patches(bank_number)
+                if patches:
+                    real_names = [p for p in patches if not p['name'].startswith('Patch ')]
+                    generic_names = [p for p in patches if p['name'].startswith('Patch ')]
+                    
+                    banks_data[bank] = {
+                        'total_patches': len(patches),
+                        'real_names_count': len(real_names),
+                        'generic_names_count': len(generic_names),
+                        'real_names': real_names[:5],  # Primeiros 5 nomes reais
+                        'generic_names': generic_names[:3],  # Primeiros 3 nomes genéricos
+                        'patches': patches
+                    }
+                    
+                    total_real_names += len(real_names)
+                else:
+                    banks_data[bank] = {
+                        'error': 'Não foi possível ler patches',
+                        'total_patches': 0,
+                        'real_names_count': 0,
+                        'generic_names_count': 0
+                    }
                 
             except Exception as e:
                 banks_data[bank] = {
