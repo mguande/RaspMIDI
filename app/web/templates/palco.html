@@ -379,11 +379,6 @@
         <div class="devices-grid" id="devices-grid">
             <!-- Dispositivos serão renderizados aqui dinamicamente -->
         </div>
-        
-        <!-- Mensagem quando não encontrar patch -->
-        <div class="no-patch-message" id="no-patch-message" style="display: none;">
-            Não existe patch para este banco.
-        </div>
     </div>
     
     <script>
@@ -480,8 +475,10 @@
                 if (data.success && data.data && data.data.active_patch) {
                     activePatch = data.data.active_patch;
                     
-                    // Esconde a mensagem de erro
-                    document.getElementById('no-patch-message').style.display = 'none';
+                    // Restaura o nome do banco no título
+                    if (activeBank) {
+                        document.getElementById('bank-name').textContent = activeBank.name;
+                    }
                     
                     // Atualiza o visual do Chocolate se o patch ativo for do Chocolate
                     if (activePatch.input_device === 'Chocolate MIDI' && activePatch.input_channel !== undefined) {
@@ -512,22 +509,27 @@
                 } else {
                     // Não sobrescreve ou esconde o patch ativo se a resposta for vazia ou erro
                     if (activePatch) {
-                        // Esconde a mensagem de erro se há patch ativo
-                        document.getElementById('no-patch-message').style.display = 'none';
+                        // Restaura o nome do banco no título se há patch ativo
+                        if (activeBank) {
+                            document.getElementById('bank-name').textContent = activeBank.name;
+                        }
                     } // não chama hideActivePatch
                 }
             } catch (error) {
                 console.error('Erro ao carregar patch ativo:', error);
                 // Não esconde o patch ativo em caso de erro
                 if (activePatch) {
-                    // Esconde a mensagem de erro se há patch ativo
-                    document.getElementById('no-patch-message').style.display = 'none';
+                    // Restaura o nome do banco no título se há patch ativo
+                    if (activeBank) {
+                        document.getElementById('bank-name').textContent = activeBank.name;
+                    }
                 } // não chama hideActivePatch
             }
         }
         
         function hideActivePatch() {
-            document.getElementById('no-patch-message').style.display = 'block';
+            // Mostra a mensagem no título
+            document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
         }
         
         async function loadDevicesInfo() {
@@ -822,8 +824,10 @@
                         const patch = chocolatePatches[0];
                         console.log(`✅ Patch encontrado: ${patch.name}`);
                         
-                        // Esconde a mensagem de erro
-                        document.getElementById('no-patch-message').style.display = 'none';
+                        // Restaura o nome do banco no título
+                        if (activeBank) {
+                            document.getElementById('bank-name').textContent = activeBank.name;
+                        }
                         
                         // PRIMEIRO: Envia comando para a Zoom G3X
                         await sendPatchToZoom(patch);
@@ -832,14 +836,14 @@
                         await activatePatch(patch);
                     } else {
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
-                        // Mostra a mensagem de erro
-                        document.getElementById('no-patch-message').style.display = 'block';
+                        // Mostra a mensagem no título
+                        document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
                     }
                 }
             } catch (error) {
                 console.error('Erro ao procurar patch por program:', error);
-                // Mostra a mensagem de erro em caso de erro
-                document.getElementById('no-patch-message').style.display = 'block';
+                // Mostra a mensagem no título em caso de erro
+                document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
             }
         }
         
