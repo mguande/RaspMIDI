@@ -241,17 +241,17 @@
         }
         
         .chocolate-led {
-            width: 12px;
-            height: 12px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            border: 1px solid #555;
+            border: 2px solid #555;
             background: #333;
             transition: all 0.3s ease;
         }
         
         .chocolate-led.on {
             background: #0f0;
-            box-shadow: 0 0 10px #0f0;
+            box-shadow: 0 0 15px #0f0;
             border-color: #0f0;
         }
         
@@ -270,7 +270,7 @@
         }
         
         .chocolate-display {
-            font-family: 'Calculator', 'Courier New', monospace;
+            font-family: 'Courier New', monospace;
             font-size: 1.2rem;
             font-weight: bold;
             color: #0f0;
@@ -282,12 +282,52 @@
             text-shadow: 0 0 5px #f00;
         }
         
-        /* Importa a fonte Calculator */
-        @font-face {
-            font-family: 'Calculator';
-            src: url('/static/fonts/Calculator.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
+        .chocolate-connect-btn {
+            background: #2a5a2a;
+            color: #fff;
+            border: none;
+            border-radius: 0.3rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+        
+        .chocolate-connect-btn:hover {
+            background: #3a7a3a;
+        }
+        
+        .chocolate-connect-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .zoom-display-wrapper {
+            background: #000;
+            border: 2px solid #333;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            margin: 0 1rem;
+            min-width: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .zoom-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 0 0 5px #0f0;
+        }
+        
+        .zoom-display.off {
+            color: #f00;
+            text-shadow: 0 0 5px #f00;
         }
     </style>
 </head>
@@ -425,12 +465,31 @@
                             }
                         }
                     }
+                    
+                    // Atualiza o display do Zoom se o patch tiver configuração da Zoom
+                    if (activePatch.zoom_bank !== undefined && activePatch.zoom_patch !== undefined) {
+                        // Busca o status de conexão da Zoom
+                        const devicesResponse = await fetch('/api/midi/devices/status_detailed');
+                        const devicesData = await devicesResponse.json();
+                        if (devicesData.success) {
+                            const zoomDevice = devicesData.data.find(dev => dev.type === 'zoom_g3x');
+                            if (zoomDevice) {
+                                updateZoomDisplay(activePatch.zoom_bank, activePatch.zoom_patch, zoomDevice.connected);
+                            }
+                        }
+                    }
                 } else {
-                    hideActivePatch();
+                    // Não sobrescreve ou esconde o patch ativo se a resposta for vazia ou erro
+                    if (activePatch) {
+                        showActivePatch(activePatch);
+                    } // não chama hideActivePatch
                 }
             } catch (error) {
                 console.error('Erro ao carregar patch ativo:', error);
-                hideActivePatch();
+                // Não esconde o patch ativo em caso de erro
+                if (activePatch) {
+                    showActivePatch(activePatch);
+                } // não chama hideActivePatch
             }
         }
         
@@ -488,11 +547,27 @@
             let deviceInfo = '';
             let reconnectBtn = '';
             let midiStatus = '';
+            let zoomDisplay = '';
             
             if (dev.type === 'zoom_g3x') {
                 // Para Zoom G3X: mostra banco e patch atual
                 const bank = dev.bank || '-';
                 const patch = dev.last_pc !== null && dev.last_pc !== undefined ? dev.last_pc : '-';
+                
+                // Cria o texto do display: "Banco [Letra] - [Número]"
+                let displayText = 'OFF';
+                if (dev.connected && bank !== '-' && patch !== '-') {
+                    // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
+                    const bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
+                    displayText = `Banco ${bankLetter} - ${patch}`;
+                }
+                
+                zoomDisplay = `
+                    <div class="zoom-display-wrapper">
+                        <span class="zoom-display ${dev.connected ? '' : 'off'}" id="zoom-display">${displayText}</span>
+                    </div>
+                `;
+                
                 deviceInfo = `
                     <div class="device-info">
                         <div class="info-row">
@@ -543,6 +618,7 @@
                     <div class="connection-icon ${connectionClass}"></div>
                     <div class="device-title">${dev.name}</div>
                 </div>
+                ${zoomDisplay}
                 ${deviceInfo}
                 ${midiStatus}
                 ${reconnectBtn}
@@ -566,10 +642,17 @@
             // Renderiza o pedal do Chocolate
             renderChocolatePedal(currentBank, dev.connected);
             
+            // Botão de conectar (só aparece se desconectado)
+            const connectButton = dev.connected ? '' : `
+                <button class="chocolate-connect-btn" onclick="connectChocolate()">
+                    🔌 Conectar Chocolate MIDI
+                </button>
+            `;
+            
             box.innerHTML = `
                 <div class="device-header">
+                    <span class="connection-icon ${connectionClass}" id="chocolate-connection-icon"></span>
                     <span class="device-title">Chocolate MIDI</span>
-                    <span class="connection-icon ${connectionClass}"></span>
                 </div>
                 <div class="chocolate-pedal-visual">
                     <div class="chocolate-leds">
@@ -584,6 +667,7 @@
                         <div class="chocolate-led" id="led-3"></div>
                     </div>
                 </div>
+                ${connectButton}
             `;
             
             return box;
@@ -624,6 +708,21 @@
             if (icon) {
                 icon.classList.toggle('connected', connected);
                 icon.classList.toggle('disconnected', !connected);
+            }
+        }
+        
+        function updateZoomDisplay(bank, patch, connected) {
+            const display = document.getElementById('zoom-display');
+            if (display) {
+                let displayText = 'OFF';
+                if (connected && bank !== '-' && patch !== '-') {
+                    // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
+                    const bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
+                    displayText = `Banco ${bankLetter} - ${patch}`;
+                }
+                
+                display.textContent = displayText;
+                display.classList.toggle('off', !connected);
             }
         }
         
@@ -845,6 +944,40 @@
                 }
             } catch (error) {
                 alert('Erro ao reconectar Chocolate: ' + error.message);
+            }
+        }
+        
+        async function connectChocolate() {
+            try {
+                console.log('🔌 Conectando Chocolate MIDI...');
+                
+                const response = await fetch('/api/midi/devices/chocolate/reconnect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ Chocolate MIDI conectado');
+                    
+                    // Recarrega informações dos dispositivos
+                    await loadDevicesInfo();
+                    
+                    // Inicia monitoramento MIDI se não estiver ativo
+                    if (!midiMonitoringActive) {
+                        await startMidiMonitoring();
+                    }
+                } else {
+                    console.error('❌ Erro ao conectar Chocolate MIDI:', data.error);
+                    alert('Erro ao conectar Chocolate MIDI: ' + data.error);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao conectar Chocolate MIDI:', error);
+                alert('Erro ao conectar Chocolate MIDI: ' + error.message);
             }
         }
 
