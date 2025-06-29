@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>RaspMIDI - Modo Palco</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { background: #181c24; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
+        .palco-container { max-width: 900px; margin: 40px auto; padding: 32px; background: #23283a; border-radius: 2rem; box-shadow: 0 4px 32px #000a; }
+        .bank-info { font-size: 1.3rem; margin-bottom: 2rem; text-align: center; }
+        .devices-list { display: flex; gap: 2rem; justify-content: center; margin-top: 2rem; }
+        .device-box { background: #1a1e2a; border-radius: 1rem; padding: 2rem 2.5rem; min-width: 220px; box-shadow: 0 2px 12px #0006; text-align: center; }
+        .device-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; }
+        .patch-info { font-size: 1.6rem; font-weight: bold; color: #ffb300; }
+        .reconnect-btn { margin-top: 1rem; background: #ff6b35; color: #fff; border: none; border-radius: 0.5rem; padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .reconnect-btn:hover { background: #e55a2b; }
+        .reconnect-btn:disabled { background: #666; cursor: not-allowed; }
+        .back-btn { margin-top: 2rem; display: block; background: #2d8cff; color: #fff; border: none; border-radius: 1rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .back-btn:hover { background: #1a5fb4; }
+    </style>
+</head>
+<body>
+    <div class="palco-container">
+        <div class="bank-info" id="palco-bank-info"><span id="palco-bank-name">-</span></div>
+        <div class="devices-list" id="palco-devices-list">
+            <!-- Dispositivos e patch/banco atual serão renderizados aqui -->
+        </div>
+        <button class="back-btn" onclick="window.location.href='/'">Voltar</button>
+    </div>
+    <script>
+        async function loadPalcoInfo() {
+            // Banco ativo
+            const bankResp = await fetch('/api/midi/banks/active');
+            const bankData = await bankResp.json();
+            if (bankData.success && bankData.data) {
+                document.getElementById('palco-bank-name').textContent = bankData.data.name || '-';
+                document.getElementById('palco-bank-info').title = bankData.data.description || '';
+            } else {
+                document.getElementById('palco-bank-name').textContent = '-';
+            }
+
+            // Dispositivos
+            const devResp = await fetch('/api/midi/devices/status_detailed');
+            const devData = await devResp.json();
+            const list = document.getElementById('palco-devices-list');
+            list.innerHTML = '';
+            if (devData.success && Array.isArray(devData.data)) {
+                devData.data.forEach(dev => {
+                    const box = document.createElement('div');
+                    box.className = 'device-box';
+                    
+                    // Determina o tipo de dispositivo para o botão de reconexão
+                    let reconnectBtn = '';
+                    if (!dev.connected) {
+                        if (dev.type === 'zoom_g3x') {
+                            reconnectBtn = `<button class="reconnect-btn" onclick="reconnectZoomG3X()">Reconectar Zoom G3X</button>`;
+                        } else if (dev.type === 'chocolate') {
+                            reconnectBtn = `<button class="reconnect-btn" onclick="reconnectChocolate()">Reconectar Chocolate</button>`;
+                        }
+                    }
+                    
+                    // Informações específicas por dispositivo
+                    let deviceInfo = '';
+                    if (dev.type === 'zoom_g3x') {
+                        // Para Zoom G3X: mostra banco e patch
+                        const bank = dev.bank || '-';
+                        const patch = dev.last_pc !== null && dev.last_pc !== undefined ? dev.last_pc : '-';
+                        deviceInfo = `<div>Banco: <span class="patch-info">${bank}</span></div><div>Patch: <span class="patch-info">${patch}</span></div>`;
+                    } else if (dev.type === 'chocolate') {
+                        // Para Chocolate: mostra apenas o banco
+                        const bank = dev.bank || '-';
+                        deviceInfo = `<div>Banco: <span class="patch-info">${bank}</span></div>`;
+                    }
+                    
+                    box.innerHTML = `
+                        <div class="device-title">${dev.name}</div>
+                        <div>Status: <b style="color:${dev.connected ? '#0f0' : '#f33'}">${dev.connected ? 'Conectado' : 'Desconectado'}</b></div>
+                        ${deviceInfo}
+                        ${reconnectBtn}
+                    `;
+                    list.appendChild(box);
+                });
+            }
+        }
+        
+        // Função para reconectar Zoom G3X
+        async function reconnectZoomG3X() {
+            try {
+                const response = await fetch('/api/midi/devices/zoom_g3x/reconnect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Zoom G3X reconectado com sucesso!');
+                    loadPalcoInfo(); // Recarrega as informações
+                } else {
+                    alert('Erro ao reconectar Zoom G3X: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                alert('Erro ao reconectar Zoom G3X: ' + error.message);
+            }
+        }
+        
+        // Função para reconectar Chocolate
+        async function reconnectChocolate() {
+            try {
+                const response = await fetch('/api/midi/devices/chocolate/reconnect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Chocolate reconectado com sucesso!');
+                    loadPalcoInfo(); // Recarrega as informações
+                } else {
+                    alert('Erro ao reconectar Chocolate: ' + (data.message || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                alert('Erro ao reconectar Chocolate: ' + error.message);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadPalcoInfo);
+        // Atualiza a cada 3 segundos
+        setInterval(loadPalcoInfo, 3000);
+    </script>
+</body>
+</html> 

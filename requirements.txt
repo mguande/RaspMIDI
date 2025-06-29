@@ -1,0 +1,6 @@
+Flask==2.3.3
+Flask-CORS==4.0.0
+mido==1.2.10
+# python-rtmidi==1.4.9  # Comentado - requer compilação
+# bleak==0.20.2  # Comentado - requer compilação
+asyncio-mqtt==0.16.1 

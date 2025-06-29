@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RaspMIDI - Controlador MIDI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>🎵 RaspMIDI</h1>
+                    <p>Controlador MIDI para Raspberry Pi - Zoom G3X & Chocolate</p>
+                </div>
+                <div class="header-right">
+                    <button onclick="window.location.href='/'" class="btn btn-secondary">
+                        ← Voltar
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div id="midi-status" class="status-indicator disconnected"></div>
+                <span>MIDI Desconectado</span>
+            </div>
+            <div class="status-item">
+                <div id="cache-status" class="status-indicator disconnected"></div>
+                <span>Cache Vazio</span>
+            </div>
+            <div class="status-item">
+                <button id="scan-devices" class="btn btn-primary btn-small">Escanear Dispositivos</button>
+                <button id="reload-cache" class="btn btn-warning btn-small">Recarregar Cache</button>
+            </div>
+        </div>
+
+        <!-- Power Alerts -->
+        <div id="power-alerts" class="power-alerts" style="display: none;">
+            <div class="alert alert-warning">
+                <div class="alert-icon">⚠️</div>
+                <div class="alert-content">
+                    <h4>Alerta de Alimentação</h4>
+                    <p id="power-alert-message">Alguns dispositivos MIDI podem precisar de alimentação externa para funcionar corretamente.</p>
+                    <div class="alert-actions">
+                        <button id="test-power-status" class="btn btn-warning btn-small">Testar Conexão</button>
+                        <button id="dismiss-power-alert" class="btn btn-secondary btn-small">Ignorar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Navigation Menu -->
+            <div class="edicao-menu">
+                <nav class="menu-nav">
+                    <a href="#dispositivos" class="menu-item active" data-section="dispositivos">
+                        <span class="menu-icon">🔌</span>
+                        <span class="menu-text">Dispositivos</span>
+                    </a>
+                    <a href="#patches" class="menu-item" data-section="patches">
+                        <span class="menu-icon">🎛️</span>
+                        <span class="menu-text">Patches</span>
+                    </a>
+                    <a href="#efeitos" class="menu-item" data-section="efeitos">
+                        <span class="menu-icon">🎚️</span>
+                        <span class="menu-text">Efeitos</span>
+                    </a>
+                    <a href="#comandos" class="menu-item" data-section="comandos">
+                        <span class="menu-icon">🎹</span>
+                        <span class="menu-text">Comandos</span>
+                    </a>
+                    <a href="#teste-midi" class="menu-item" data-section="teste-midi">
+                        <span class="menu-icon">📡</span>
+                        <span class="menu-text">Teste MIDI</span>
+                    </a>
+                </nav>
+            </div>
+
+            <!-- Content Sections -->
+            <div class="content-sections">
+                <!-- Devices Section -->
+                <div id="dispositivos" class="content-section active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🔌 Dispositivos MIDI</h2>
+                            <div class="header-actions">
+                                <button id="reconnect-chocolate" class="btn btn-warning btn-small">Reconectar Chocolate</button>
+                                <button id="reactivate-alerts" class="btn btn-info btn-small">Reativar Alertas</button>
+                                <button id="refresh-devices" class="btn btn-primary btn-small">Atualizar</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Device Configuration -->
+                        <div class="device-config mb-20">
+                            <div class="flex gap-20">
+                                <div class="form-group">
+                                    <label class="form-label">Dispositivo de Entrada</label>
+                                    <select id="input-device" class="form-input">
+                                        <option value="">Selecione...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Dispositivo de Saída</label>
+                                    <select id="output-device" class="form-input">
+                                        <option value="">Selecione...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button id="save-config" class="btn btn-success">Salvar Configuração</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- USB Devices -->
+                        <div class="device-section">
+                            <h3>📱 Dispositivos USB</h3>
+                            <div id="usb-devices" class="devices-grid">
+                                <div class="text-center">
+                                    <div class="loading"></div>
+                                    <p>Carregando dispositivos USB...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bluetooth Devices -->
+                        <div class="device-section">
+                            <h3>🔵 Dispositivos Bluetooth</h3>
+                            <div id="bluetooth-devices" class="devices-grid">
+                                <div class="text-center">
+                                    <div class="loading"></div>
+                                    <p>Carregando dispositivos Bluetooth...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patches Section -->
+                <div id="patches" class="content-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🎛️ Patches</h2>
+                            <div class="section-actions">
+                                <button class="btn btn-primary" onclick="app.showNewPatchModal()">
+                                    <i class="fas fa-plus"></i> Novo Patch
+                                </button>
+                                <button class="btn btn-secondary" onclick="app.refreshZoomPatches()">
+                                    <i class="fas fa-sync-alt"></i> Atualizar Patches Zoom
+                                </button>
+                            </div>
+                        </div>
+                        <div id="patches-container">
+                            <div class="text-center">
+                                <div class="loading"></div>
+                                <p>Carregando patches...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Effects Section -->
+                <div id="efeitos" class="content-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🎚️ Controle de Efeitos</h2>
+                            <span>Ligue/desligue efeitos individuais</span>
+                        </div>
+                        <div id="effects-container">
+                            <div class="text-center">
+                                <div class="loading"></div>
+                                <p>Carregando efeitos...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MIDI Commands Section -->
+                <div id="comandos" class="content-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">🎹 Comandos MIDI</h2>
+                        </div>
+                        
+                        <!-- Seleção de Dispositivo de Saída -->
+                        <div class="midi-output-config">
+                            <div class="form-group">
+                                <label for="output-device-select" class="form-label">Dispositivo de Saída:</label>
+                                <select id="output-device-select" class="form-input">
+                                    <option value="">Selecione um dispositivo...</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Botões Pré-configurados -->
+                        <div class="preset-commands">
+                            <h3>Comandos Rápidos</h3>
+                            
+                            <!-- Bancos de Patches -->
+                            <div class="command-group">
+                                <h4>Bancos de Patches</h4>
+                                <div class="command-buttons">
+                                    <button class="btn btn-primary preset-btn" data-type="pc" data-program="0" data-label="Banco 1">
+                                        Banco 1
+                                    </button>
+                                    <button class="btn btn-primary preset-btn" data-type="pc" data-program="1" data-label="Banco 2">
+                                        Banco 2
+                                    </button>
+                                    <button class="btn btn-primary preset-btn" data-type="pc" data-program="2" data-label="Banco 3">
+                                        Banco 3
+                                    </button>
+                                    <button class="btn btn-primary preset-btn" data-type="pc" data-program="3" data-label="Banco 4">
+                                        Banco 4
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Bancos com Efeito 1 Desligado -->
+                            <div class="command-group">
+                                <h4>Bancos + Efeito 1 OFF</h4>
+                                <div class="command-buttons">
+                                    <button class="btn btn-warning preset-btn" data-type="multi" data-commands='[{"type":"pc","program":0},{"type":"delay","ms":200},{"type":"cc","cc":0,"value":0}]' data-label="Banco 1 + FX1 OFF">
+                                        Banco 1 + FX1 OFF
+                                    </button>
+                                    <button class="btn btn-warning preset-btn" data-type="multi" data-commands='[{"type":"pc","program":1},{"type":"delay","ms":200},{"type":"cc","cc":0,"value":0}]' data-label="Banco 2 + FX1 OFF">
+                                        Banco 2 + FX1 OFF
+                                    </button>
+                                    <button class="btn btn-warning preset-btn" data-type="multi" data-commands='[{"type":"pc","program":2},{"type":"delay","ms":200},{"type":"cc","cc":0,"value":0}]' data-label="Banco 3 + FX1 OFF">
+                                        Banco 3 + FX1 OFF
+                                    </button>
+                                    <button class="btn btn-warning preset-btn" data-type="multi" data-commands='[{"type":"pc","program":3},{"type":"delay","ms":200},{"type":"cc","cc":0,"value":0}]' data-label="Banco 4 + FX1 OFF">
+                                        Banco 4 + FX1 OFF
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Testes de Efeito 1 -->
+                            <div class="command-group">
+                                <h4>Testes Efeito 1</h4>
+                                <div class="command-buttons">
+                                    <button class="btn btn-info preset-btn" data-type="cc" data-cc="0" data-value="0" data-label="FX1 OFF (CC0=0)">
+                                        FX1 OFF (CC0=0)
+                                    </button>
+                                    <button class="btn btn-info preset-btn" data-type="cc" data-cc="0" data-value="127" data-label="FX1 ON (CC0=127)">
+                                        FX1 ON (CC0=127)
+                                    </button>
+                                    <button class="btn btn-info preset-btn" data-type="cc" data-cc="0" data-value="64" data-label="FX1 50% (CC0=64)">
+                                        FX1 50% (CC0=64)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Diagnóstico Zoom G3X -->
+                            <div class="command-group">
+                                <h4>Diagnóstico Zoom G3X</h4>
+                                <div class="diagnostic-grid">
+                                    <div class="diagnostic-section">
+                                        <h5>Teste CCs 0-5 (Efeitos 1-6)</h5>
+                                        <div class="command-buttons">
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="0" data-value="0" data-label="CC0=0">
+                                                CC0=0
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="1" data-value="0" data-label="CC1=0">
+                                                CC1=0
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="2" data-value="0" data-label="CC2=0">
+                                                CC2=0
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="3" data-value="0" data-label="CC3=0">
+                                                CC3=0
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="4" data-value="0" data-label="CC4=0">
+                                                CC4=0
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="5" data-value="0" data-label="CC5=0">
+                                                CC5=0
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="diagnostic-section">
+                                        <h5>Teste Valores (CC0)</h5>
+                                        <div class="command-buttons">
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="0" data-value="1" data-label="CC0=1">
+                                                CC0=1
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="0" data-value="2" data-label="CC0=2">
+                                                CC0=2
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="0" data-value="10" data-label="CC0=10">
+                                                CC0=10
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="0" data-value="100" data-label="CC0=100">
+                                                CC0=100
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="diagnostic-section">
+                                        <h5>Teste CCs Comuns</h5>
+                                        <div class="command-buttons">
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="7" data-value="0" data-label="Volume=0 (CC7)">
+                                                Volume=0 (CC7)
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="7" data-value="127" data-label="Volume=127 (CC7)">
+                                                Volume=127 (CC7)
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="11" data-value="0" data-label="Expression=0 (CC11)">
+                                                Expression=0 (CC11)
+                                            </button>
+                                            <button class="btn btn-secondary preset-btn" data-type="cc" data-cc="11" data-value="127" data-label="Expression=127 (CC11)">
+                                                Expression=127 (CC11)
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Criação de Comandos Personalizados -->
+                        <div class="custom-commands">
+                            <h3>Criar Comando Personalizado</h3>
+                            
+                            <div class="command-creator">
+                                <div class="form-group">
+                                    <label for="command-type" class="form-label">Tipo de Comando:</label>
+                                    <select id="command-type" class="form-input">
+                                        <option value="cc">Control Change (CC)</option>
+                                        <option value="pc">Program Change (PC)</option>
+                                        <option value="note">Note On/Off</option>
+                                    </select>
+                                </div>
+
+                                <div class="command-params">
+                                    <!-- Parâmetros CC -->
+                                    <div id="cc-params" class="param-group">
+                                        <div class="form-group">
+                                            <label for="cc-number" class="form-label">Número CC:</label>
+                                            <input type="number" id="cc-number" class="form-input" placeholder="0-127" min="0" max="127">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="cc-value" class="form-label">Valor:</label>
+                                            <input type="number" id="cc-value" class="form-input" placeholder="0-127" min="0" max="127">
+                                        </div>
+                                    </div>
+
+                                    <!-- Parâmetros PC -->
+                                    <div id="pc-params" class="param-group" style="display: none;">
+                                        <div class="form-group">
+                                            <label for="pc-program" class="form-label">Programa:</label>
+                                            <input type="number" id="pc-program" class="form-input" placeholder="0-127" min="0" max="127">
+                                        </div>
+                                    </div>
+
+                                    <!-- Parâmetros Note -->
+                                    <div id="note-params" class="param-group" style="display: none;">
+                                        <div class="form-group">
+                                            <label for="note-number" class="form-label">Nota:</label>
+                                            <input type="number" id="note-number" class="form-input" placeholder="21-108" min="21" max="108">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="note-velocity" class="form-label">Velocidade:</label>
+                                            <input type="number" id="note-velocity" class="form-input" placeholder="1-127" min="1" max="127" value="64">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="note-type" class="form-label">Tipo:</label>
+                                            <select id="note-type" class="form-input">
+                                                <option value="on">Note On</option>
+                                                <option value="off">Note Off</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="command-actions">
+                                    <button id="send-custom-command" class="btn btn-success">Enviar Comando</button>
+                                    <button id="save-command-template" class="btn btn-primary">Salvar como Template</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Log de Comandos Enviados -->
+                        <div class="command-log">
+                            <h3>📤 Comandos Enviados</h3>
+                            <div class="shell-container">
+                                <div class="shell-header">
+                                    <span class="shell-title">MIDI Commands Log</span>
+                                    <div class="shell-controls">
+                                        <select id="command-log-lines" class="log-lines-select">
+                                            <option value="3">3 linhas</option>
+                                            <option value="5" selected>5 linhas</option>
+                                            <option value="10">10 linhas</option>
+                                            <option value="15">15 linhas</option>
+                                        </select>
+                                        <button id="clear-command-log" class="btn btn-warning btn-small">Limpar</button>
+                                    </div>
+                                </div>
+                                <div id="command-log-content" class="shell-content">
+                                    <div class="log-entry">
+                                        <span class="log-time">--:--:--</span>
+                                        <span class="log-prompt">$</span>
+                                        <span class="log-text">Sistema pronto. Aguardando comandos...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Comandos SysEx Zoom -->
+                        <div class="sysex-zoom-section">
+                            <h3>Zoom G3X - Comandos Especiais</h3>
+                            <div class="sysex-row">
+                                <label for="zoom-patch-number">Selecionar Patch:</label>
+                                <input type="number" id="zoom-patch-number" min="10" max="59" value="10" class="form-input" style="width:70px;">
+                                <button id="btn-zoom-select-patch" class="btn btn-primary btn-small">Selecionar</button>
+                            </div>
+                            <div class="sysex-row">
+                                <button id="btn-zoom-tuner-on" class="btn btn-success btn-small">Ligar Afinador</button>
+                                <button id="btn-zoom-tuner-off" class="btn btn-danger btn-small">Desligar Afinador</button>
+                            </div>
+                            <div class="sysex-row">
+                                <label for="zoom-effect-block">Bloco de Efeito:</label>
+                                <select id="zoom-effect-block" class="form-input" style="width:70px;">
+                                    <option value="0">1</option>
+                                    <option value="1">2</option>
+                                    <option value="2">3</option>
+                                    <option value="3">4</option>
+                                    <option value="4">5</option>
+                                    <option value="5">6</option>
+                                    <option value="6">7</option>
+                                </select>
+                                <button id="btn-zoom-effect-on" class="btn btn-success btn-small">Ligar Efeito</button>
+                                <button id="btn-zoom-effect-off" class="btn btn-danger btn-small">Desligar Efeito</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MIDI Monitor Section -->
+                <div id="teste-midi" class="content-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">📡 Monitor MIDI</h2>
+                            <div class="flex gap-10">
+                                <button id="simulate-command" class="btn btn-primary btn-small">Simular Comando</button>
+                                <button id="clear-monitor" class="btn btn-warning btn-small">Limpar</button>
+                                <button id="toggle-monitor" class="btn btn-success btn-small">Iniciar Monitor</button>
+                            </div>
+                        </div>
+                        <div class="midi-monitor">
+                            <div class="monitor-config">
+                                <div class="form-group">
+                                    <label for="monitor-input-device" class="form-label">Dispositivo de Entrada:</label>
+                                    <select id="monitor-input-device" class="form-input">
+                                        <option value="">Selecione um dispositivo...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="monitor-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Status:</span>
+                                    <span id="monitor-status" class="stat-value disconnected">Desconectado</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Dispositivo:</span>
+                                    <span id="monitor-device" class="stat-value">Nenhum</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Modo:</span>
+                                    <span id="monitor-mode" class="stat-value">-</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Log de Comandos MIDI Recebidos -->
+                            <div class="midi-monitor-log">
+                                <h3>📥 Comandos MIDI Recebidos</h3>
+                                <div class="shell-container">
+                                    <div class="shell-header">
+                                        <span class="shell-title">MIDI Input Monitor</span>
+                                        <div class="shell-controls">
+                                            <select id="midi-monitor-lines" class="log-lines-select">
+                                                <option value="3">3 linhas</option>
+                                                <option value="5" selected>5 linhas</option>
+                                                <option value="10">10 linhas</option>
+                                                <option value="15">15 linhas</option>
+                                            </select>
+                                            <button id="clear-midi-monitor" class="btn btn-warning btn-small">Limpar</button>
+                                        </div>
+                                    </div>
+                                    <div id="midi-monitor-content" class="shell-content">
+                                        <div class="log-entry">
+                                            <span class="log-time">--:--:--</span>
+                                            <span class="log-prompt">></span>
+                                            <span class="log-text">Monitor desativado. Clique em "Iniciar Monitor" para começar.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Novo Modal de Patch -->
+    <div id="new-patch-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="app.closeModal(document.getElementById('new-patch-modal'))">&times;</span>
+            <h2>Criar Novo Patch</h2>
+            <form id="new-patch-form">
+                <!-- Seção 1: Nome do Patch -->
+                <div class="patch-section">
+                    <h3>📝 Informações Básicas</h3>
+                    <div class="form-group">
+                        <label for="patch-name">Nome do Patch</label>
+                        <input type="text" id="patch-name" name="name" class="form-input" required placeholder="Digite um nome para o patch">
+                    </div>
+                </div>
+
+                <!-- Seção 2: Dispositivo de Entrada -->
+                <div class="patch-section">
+                    <h3>🔌 Dispositivo de Entrada</h3>
+                    <div class="form-group">
+                        <label for="patch-input-device">Dispositivo</label>
+                        <select id="patch-input-device" name="input_device" class="form-input" required onchange="app.handleInputDeviceChange(this.value)">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div id="input-channel-section" style="display: none;">
+                        <div class="form-group">
+                            <label for="patch-input-channel">Canal MIDI (0-127)</label>
+                            <select id="patch-input-channel" name="input_channel" class="form-input">
+                                <option value="">Selecione um canal...</option>
+                            </select>
+                            <small class="form-help">Canais já utilizados em outros patches foram excluídos da lista</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Seção 3: Dispositivo de Saída -->
+                <div class="patch-section">
+                    <h3>🎛️ Dispositivo de Saída</h3>
+                    <div class="form-group">
+                        <label for="patch-output-device">Dispositivo</label>
+                        <select id="patch-output-device" name="output_device" class="form-input" required onchange="app.handleOutputDeviceChange(this.value)">
+                            <option value="">Selecione...</option>
+                        </select>
+                    </div>
+                    <div id="output-zoom-section" style="display: none;">
+                        <div class="form-group">
+                            <label for="patch-zoom-bank">Banco de Patches</label>
+                            <select id="patch-zoom-bank" name="zoom_bank" class="form-input" onchange="app.handleZoomBankChange(this.value)">
+                                <option value="">Selecione um banco...</option>
+                                <option value="A">Banco A</option>
+                                <option value="B">Banco B</option>
+                                <option value="C">Banco C</option>
+                                <option value="D">Banco D</option>
+                                <option value="E">Banco E</option>
+                                <option value="F">Banco F</option>
+                                <option value="G">Banco G</option>
+                                <option value="H">Banco H</option>
+                                <option value="I">Banco I</option>
+                                <option value="J">Banco J</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="patch-zoom-patch">Patch</label>
+                            <select id="patch-zoom-patch" name="zoom_patch" class="form-input" onchange="app.handleZoomPatchChange(this.value)">
+                                <option value="">Selecione um patch...</option>
+                            </select>
+                            <small class="form-help">Patches já utilizados em outros patches foram excluídos da lista</small>
+                        </div>
+                        
+                        <!-- Configuração de Efeitos -->
+                        <div id="zoom-effects-config" style="display: none;">
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="enable-effects-config" name="enable_effects_config" onchange="app.toggleEffectsConfig(this.checked)">
+                                    <span class="checkmark"></span>
+                                    Configurar efeitos do patch
+                                </label>
+                                <small class="form-help">Habilita a configuração de quais efeitos ficarão ligados/desligados quando o patch for selecionado</small>
+                            </div>
+                            
+                            <div id="effects-grid" style="display: none;">
+                                <label>Efeitos do Patch:</label>
+                                <div class="effects-container">
+                                    <div class="effect-box" data-effect="1" onclick="app.toggleEffect(1)">
+                                        <span class="effect-label">FX 1</span>
+                                        <div class="effect-status enabled"></div>
+                                    </div>
+                                    <div class="effect-box" data-effect="2" onclick="app.toggleEffect(2)">
+                                        <span class="effect-label">FX 2</span>
+                                        <div class="effect-status enabled"></div>
+                                    </div>
+                                    <div class="effect-box" data-effect="3" onclick="app.toggleEffect(3)">
+                                        <span class="effect-label">FX 3</span>
+                                        <div class="effect-status enabled"></div>
+                                    </div>
+                                    <div class="effect-box" data-effect="4" onclick="app.toggleEffect(4)">
+                                        <span class="effect-label">FX 4</span>
+                                        <div class="effect-status enabled"></div>
+                                    </div>
+                                    <div class="effect-box" data-effect="5" onclick="app.toggleEffect(5)">
+                                        <span class="effect-label">FX 5</span>
+                                        <div class="effect-status enabled"></div>
+                                    </div>
+                                    <div class="effect-box" data-effect="6" onclick="app.toggleEffect(6)">
+                                        <span class="effect-label">FX 6</span>
+                                        <div class="effect-status enabled"></div>
+                                    </div>
+                                </div>
+                                <small class="form-help">Clique nos efeitos para ligar/desligar. Verde = ligado, Vermelho = desligado</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="output-command-section" style="display: none;">
+                        <div class="form-group">
+                            <label for="patch-command-type">Tipo de Comando</label>
+                            <select id="patch-command-type" name="command_type" class="form-input">
+                                <option value="">Selecione...</option>
+                                <option value="pc">Program Change (PC)</option>
+                                <option value="cc">Control Change (CC)</option>
+                                <option value="note_on">Note On</option>
+                                <option value="note_off">Note Off</option>
+                            </select>
+                        </div>
+                        <div id="patch-command-params"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Salvar Patch</button>
+                    <button type="button" class="btn btn-secondary" onclick="app.closeModal(document.getElementById('new-patch-modal'))">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Styles -->
+    <style>
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .notification-success {
+            background-color: var(--success-color);
+        }
+        
+        .notification-error {
+            background-color: var(--accent-color);
+        }
+        
+        .notification-warning {
+            background-color: var(--warning-color);
+        }
+        
+        .notification-info {
+            background-color: var(--secondary-color);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Device Management Styles */
+        .device-config {
+            background-color: var(--background-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .device-section {
+            margin-bottom: 30px;
+        }
+
+        .device-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .devices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .device-item {
+            background: var(--card-background);
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .device-item.connected {
+            border-color: var(--success-color);
+            background-color: #f8fff9;
+        }
+
+        .device-item.disconnected {
+            border-color: var(--accent-color);
+            background-color: #fff8f8;
+        }
+
+        .device-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--primary-color);
+        }
+
+        .device-type {
+            font-size: 0.8rem;
+            color: var(--text-color);
+            opacity: 0.7;
+            margin-bottom: 8px;
+        }
+
+        .device-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .device-status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+        }
+
+        .device-status-indicator.connected {
+            background-color: var(--success-color);
+        }
+
+        .device-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .device-actions .btn {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        /* Monitor MIDI Styles */
+        .monitor-config {
+            background-color: var(--background-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .monitor-config .form-group {
+            margin-bottom: 0;
+        }
+
+        .monitor-config .form-label {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .monitor-config .form-input {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* MIDI Commands Styles */
+        .midi-output-config {
+            background-color: var(--background-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .preset-commands {
+            margin-bottom: 30px;
+        }
+
+        .preset-commands h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .command-group {
+            margin-bottom: 20px;
+        }
+
+        .command-group h4 {
+            color: var(--text-color);
+            margin-bottom: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .command-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .command-buttons .btn {
+            min-width: 120px;
+        }
+
+        .custom-commands {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .custom-commands h3 {
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .command-creator {
+            background-color: var(--background-color);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .command-params {
+            margin: 15px 0;
+        }
+
+        .param-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .command-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .preset-btn {
+            transition: all 0.3s ease;
+        }
+
+        .preset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .preset-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Diagnostic Styles */
+        .diagnostic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .diagnostic-section {
+            background-color: var(--background-color);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .diagnostic-section h5 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .diagnostic-section .command-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .diagnostic-section .btn {
+            min-width: 80px;
+            font-size: 0.8rem;
+            padding: 6px 8px;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--primary-color);
+        }
+    </style>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // Funções auxiliares para comandos MIDI
+        async function sendCC() {
+            const cc = document.getElementById('cc-number').value;
+            const value = document.getElementById('cc-value').value;
+            
+            if (!cc || !value) {
+                app.showNotification('Preencha CC e valor', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/midi/cc', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cc: parseInt(cc),
+                        value: parseInt(value)
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    app.showNotification(data.message, 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                app.showNotification('Erro ao enviar CC', 'error');
+            }
+        }
+        
+        async function sendPC() {
+            const program = document.getElementById('pc-program').value;
+            
+            if (!program) {
+                app.showNotification('Preencha o programa', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/midi/pc', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        program: parseInt(program)
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    app.showNotification(data.message, 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                app.showNotification('Erro ao enviar PC', 'error');
+            }
+        }
+    </script>
+</body>
+</html> 

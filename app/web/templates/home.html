@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>RaspMIDI - Escolha o Modo</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #181c24; }
+        .mode-select-container { display: flex; flex-direction: column; gap: 40px; align-items: center; }
+        .mode-btn { font-size: 2.2rem; padding: 2rem 4rem; border-radius: 1.5rem; border: none; cursor: pointer; font-family: inherit; font-weight: bold; transition: background 0.2s, color 0.2s, box-shadow 0.2s; box-shadow: 0 4px 24px #0008; }
+        .mode-btn.edicao { background: #2d8cff; color: #fff; }
+        .mode-btn.edicao:hover { background: #1a5fb4; }
+        .mode-btn.palco { background: #ffb300; color: #222; }
+        .mode-btn.palco:hover { background: #b48400; color: #fff; }
+        .logo { font-size: 2.5rem; color: #fff; margin-bottom: 2rem; letter-spacing: 2px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="mode-select-container">
+        <div class="logo">🎛️ RaspMIDI</div>
+        <button class="mode-btn edicao" onclick="window.location.href='/edicao'">Modo Edição</button>
+        <button class="mode-btn palco" onclick="window.location.href='/palco'">Modo Palco</button>
+    </div>
+</body>
+</html> 

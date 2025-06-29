@@ -1,0 +1,45 @@
+{
+  "input_device": "Chocolate MIDI In",
+  "output_device": "Microsoft GS Wavetable Synth 0",
+  "devices": {
+    "inputs": [
+      {
+        "name": "Chocolate MIDI In",
+        "real_name": "FootCtrlPlus 0",
+        "type": "chocolate"
+      },
+      {
+        "name": "Zoom G3X MIDI In",
+        "real_name": "ZOOM G Series 1",
+        "type": "zoom_g3x"
+      },
+      {
+        "name": "Chocolate MIDI In",
+        "real_name": "FootCtrlPlus-Bt 2",
+        "type": "chocolate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Microsoft GS Wavetable Synth 0",
+        "real_name": "Microsoft GS Wavetable Synth 0",
+        "type": "generic"
+      },
+      {
+        "name": "Chocolate MIDI Out",
+        "real_name": "FootCtrlPlus 1",
+        "type": "chocolate"
+      },
+      {
+        "name": "Zoom G3X MIDI Out",
+        "real_name": "ZOOM G Series 2",
+        "type": "zoom_g3x"
+      },
+      {
+        "name": "Chocolate MIDI Out",
+        "real_name": "FootCtrlPlus-Bt 3",
+        "type": "chocolate"
+      }
+    ]
+  }
+}
