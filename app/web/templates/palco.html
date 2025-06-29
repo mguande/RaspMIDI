@@ -564,18 +564,15 @@
             
             const connectionClass = dev.connected ? 'connected' : 'disconnected';
             
-            let deviceInfo = '';
-            let reconnectBtn = '';
-            let midiStatus = '';
             let zoomDisplay = '';
             
             if (dev.type === 'zoom_g3x') {
-                // Para Zoom G3X: mostra banco e patch atual
+                // Para Zoom G3X: apenas display, título e bullet de conexão
                 const bank = dev.bank || '-';
                 const patch = dev.last_pc !== null && dev.last_pc !== undefined ? dev.last_pc : '-';
                 
                 // Cria o texto do display: "Banco [Letra] - [Número]"
-                let displayText = 'OFF';
+                let displayText = '---';
                 if (dev.connected && bank !== '-' && patch !== '-') {
                     // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
                     const bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
@@ -587,50 +584,6 @@
                         <span class="zoom-display ${dev.connected ? '' : 'off'}" id="zoom-display">${displayText}</span>
                     </div>
                 `;
-                
-                deviceInfo = `
-                    <div class="device-info">
-                        <div class="info-row">
-                            <span class="info-label">Banco:</span>
-                            <span class="info-value">${bank}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Patch:</span>
-                            <span class="info-value">${patch}</span>
-                        </div>
-                    </div>
-                `;
-            } else if (dev.type === 'chocolate') {
-                // Para Chocolate: apenas informativo (status + patch ativo)
-                const currentPatch = activePatch && activePatch.input_device === 'Chocolate MIDI' ? activePatch.name : 'Nenhum';
-                deviceInfo = `
-                    <div class="device-info">
-                        <div class="info-row">
-                            <span class="info-label">Patch Ativo:</span>
-                            <span class="info-value">${currentPatch}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Status:</span>
-                            <span class="info-value">${dev.connected ? 'Conectado' : 'Desconectado'}</span>
-                        </div>
-                    </div>
-                `;
-                
-                // Status do monitoramento MIDI
-                const midiClass = midiMonitoringActive ? 'active' : '';
-                midiStatus = `
-                    <div class="midi-status ${midiClass}">
-                        MIDI Monitor: ${midiMonitoringActive ? 'Ativo' : 'Inativo'}
-                    </div>
-                `;
-            }
-            
-            if (!dev.connected) {
-                if (dev.type === 'zoom_g3x') {
-                    reconnectBtn = `<button class="reconnect-btn" onclick="reconnectZoomG3X()">Reconectar Zoom G3X</button>`;
-                } else if (dev.type === 'chocolate') {
-                    reconnectBtn = `<button class="reconnect-btn" onclick="reconnectChocolate()">Reconectar Chocolate</button>`;
-                }
             }
             
             box.innerHTML = `
@@ -639,9 +592,6 @@
                     <div class="device-title">${dev.name}</div>
                 </div>
                 ${zoomDisplay}
-                ${deviceInfo}
-                ${midiStatus}
-                ${reconnectBtn}
             `;
             
             return box;
@@ -694,32 +644,24 @@
         }
         
         function renderChocolatePedal(bankNumber, connected) {
-            // Calcula página de 4 bancos
-            let page = Math.floor(bankNumber / 4);
-            let ledIndex = bankNumber % 4;
-            
-            // Atualiza LEDs
-            for (let i = 0; i < 4; i++) {
-                const led = document.getElementById('led-' + i);
-                if (!led) continue;
-                if (connected && i === ledIndex) {
-                    led.classList.add('on');
-                    led.classList.remove('off');
-                } else {
-                    led.classList.remove('on');
-                    led.classList.add('off');
-                }
-            }
-            
-            // Atualiza display - mostra o número real do banco (0, 1, 2, 3, etc.)
-            const display = document.getElementById('chocolate-display');
-            if (display) {
-                if (connected) {
-                    display.textContent = ('' + bankNumber).padStart(3, '0');
-                    display.classList.remove('off');
-                } else {
+            if (connected) {
+                // Se conectado, atualiza o display com o banco atual
+                updateChocolateDisplay(bankNumber);
+            } else {
+                // Se desconectado, mostra OFF
+                const display = document.getElementById('chocolate-display');
+                if (display) {
                     display.textContent = 'OFF';
                     display.classList.add('off');
+                }
+                
+                // Desliga todos os LEDs
+                for (let i = 0; i < 4; i++) {
+                    const led = document.getElementById('led-' + i);
+                    if (led) {
+                        led.classList.remove('on');
+                        led.classList.add('off');
+                    }
                 }
             }
             
@@ -803,7 +745,36 @@
             // Se for um Program Change do Chocolate, busca e ativa o patch correspondente
             if (command.type === 'program_change' && command.program !== undefined) {
                 console.log(`🎹 Program Change detectado: ${command.program}`);
+                
+                // SEMPRE atualiza o display do Chocolate com o banco selecionado
+                updateChocolateDisplay(command.program);
+                
+                // Busca e ativa o patch correspondente
                 findAndActivatePatchByProgram(command.program);
+            }
+        }
+        
+        function updateChocolateDisplay(program) {
+            // Atualiza o display do Chocolate para mostrar o banco selecionado
+            const display = document.getElementById('chocolate-display');
+            if (display) {
+                display.textContent = ('' + program).padStart(3, '0');
+                display.classList.remove('off');
+            }
+            
+            // Atualiza os LEDs do Chocolate
+            const ledIndex = program % 4;
+            for (let i = 0; i < 4; i++) {
+                const led = document.getElementById('led-' + i);
+                if (led) {
+                    if (i === ledIndex) {
+                        led.classList.add('on');
+                        led.classList.remove('off');
+                    } else {
+                        led.classList.remove('on');
+                        led.classList.add('off');
+                    }
+                }
             }
         }
         
@@ -838,12 +809,18 @@
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
                         // Mostra a mensagem no título
                         document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
+                        
+                        // Limpa o display da Zoom já que não há patch correspondente
+                        updateZoomDisplay('-', '-', false);
                     }
                 }
             } catch (error) {
                 console.error('Erro ao procurar patch por program:', error);
                 // Mostra a mensagem no título em caso de erro
                 document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
+                
+                // Limpa o display da Zoom em caso de erro
+                updateZoomDisplay('-', '-', false);
             }
         }
         
