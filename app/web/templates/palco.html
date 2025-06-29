@@ -24,8 +24,8 @@
         
         .back-btn {
             position: absolute;
-            top: 1rem;
-            right: 1rem;
+            top: 1.5rem;
+            right: 1.5rem;
             background: #2a2e3a;
             color: #fff;
             border: none;
@@ -46,6 +46,19 @@
             text-align: center;
             margin-bottom: 2rem;
             color: #fff;
+            border: 2px solid #333;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            background: #1a1e2a;
+            position: relative;
+        }
+        
+        .palco-title .bank-name {
+            font-size: 2rem;
+            color: #ffd700;
+            margin: 0;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ffd700;
         }
         
         .palco-title h1 {
@@ -360,8 +373,7 @@
         <button class="back-btn" onclick="window.location.href='/'">←</button>
         
         <div class="palco-title">
-            <h1>RaspMIDI</h1>
-            <div class="bank-name" id="bank-name">Banco Ativo: Nenhum</div>
+            <div class="bank-name" id="bank-name">Nenhum Banco Ativo</div>
         </div>
         
         <div class="devices-grid" id="devices-grid">
@@ -453,11 +465,11 @@
         }
         
         function showActiveBank(bank) {
-            document.getElementById('bank-name').textContent = `Banco Ativo: ${bank.name}`;
+            document.getElementById('bank-name').textContent = bank.name;
         }
         
         function hideActiveBank() {
-            document.getElementById('bank-name').textContent = 'Banco Ativo: Nenhum';
+            document.getElementById('bank-name').textContent = 'Nenhum Banco Ativo';
         }
         
         async function loadActivePatchInfo() {
