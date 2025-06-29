@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 class RemoteDev:
-    def __init__(self, host="192.168.4.1", user="pi", project_path="/home/pi/RaspMIDI"):
+    def __init__(self, host="192.168.15.8", user="matheus", project_path="/home/matheus/RaspMIDI"):
         self.host = host
         self.user = user
         self.project_path = project_path
@@ -193,8 +193,8 @@ def main():
     print("=" * 50)
     
     # Configuração
-    host = input("IP do Raspberry Pi (192.168.4.1): ").strip() or "192.168.4.1"
-    user = input("Usuário (pi): ").strip() or "pi"
+    host = input("IP do Raspberry Pi (192.168.15.8): ").strip() or "192.168.15.8"
+    user = input("Usuário (matheus): ").strip() or "matheus"
     
     dev = RemoteDev(host, user)
     

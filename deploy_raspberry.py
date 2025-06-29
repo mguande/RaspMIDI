@@ -81,7 +81,7 @@ def setup_midi_permissions():
     print("🎵 Configurando permissões MIDI...")
     
     # Adicionar usuário ao grupo audio
-    run_command("sudo usermod -a -G audio $USER", "Adicionando usuário ao grupo audio")
+    run_command("sudo usermod -a -G audio matheus", "Adicionando usuário ao grupo audio")
     
     # Configurar permissões para dispositivos MIDI
     run_command("sudo chmod 666 /dev/snd/*", "Configurando permissões de áudio")
@@ -99,10 +99,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/RaspMIDI
-Environment=PATH=/home/pi/RaspMIDI/venv/bin
-ExecStart=/home/pi/RaspMIDI/venv/bin/python run.py
+User=matheus
+WorkingDirectory=/home/matheus/RaspMIDI
+Environment=PATH=/home/matheus/RaspMIDI/venv/bin
+ExecStart=/home/matheus/RaspMIDI/venv/bin/python run.py
 Restart=always
 RestartSec=10
 
@@ -238,7 +238,7 @@ def main():
     print("2. Conecte-se ao WiFi 'RaspMIDI' (senha: raspmidi123)")
     print("3. Acesse: http://192.168.4.1:5000")
     print("4. Para desenvolvimento remoto, conecte via SSH:")
-    print("   ssh pi@192.168.4.1")
+    print("   ssh matheus@192.168.15.8")
     
     return True
 

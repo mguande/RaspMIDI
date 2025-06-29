@@ -30,7 +30,7 @@ info() {
 }
 
 # Diretório do projeto
-PROJECT_DIR="/home/pi/RaspMIDI"
+PROJECT_DIR="/home/matheus/RaspMIDI"
 LOG_DIR="$PROJECT_DIR/logs"
 CONFIG_FILE="$PROJECT_DIR/config.json"
 
@@ -68,7 +68,7 @@ setup_permissions() {
     log "Configurando permissões..."
     
     # Adicionar usuário ao grupo audio
-    sudo usermod -a -G audio pi
+    sudo usermod -a -G audio matheus
     
     # Configurar permissões para dispositivos de áudio
     sudo chmod 666 /dev/snd/* 2>/dev/null || true

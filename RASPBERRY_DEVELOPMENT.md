@@ -21,7 +21,7 @@ Este guia explica como configurar e usar o desenvolvimento remoto para o RaspMID
 
 ```bash
 # Conectar ao Raspberry Pi via SSH
-ssh pi@192.168.4.1
+ssh matheus@192.168.15.8
 
 # Atualizar sistema
 sudo apt update && sudo apt upgrade -y
@@ -30,7 +30,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3 python3-pip python3-venv git
 
 # Clonar o repositório
-cd /home/pi
+cd /home/matheus
 git clone https://github.com/mguande/RaspMIDI.git
 cd RaspMIDI
 
@@ -49,7 +49,7 @@ pip install -r requirements.txt
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
 
 # Copiar chave para o Raspberry Pi
-ssh-copy-id pi@192.168.4.1
+ssh-copy-id matheus@192.168.15.8
 ```
 
 ### 3. Configurar hotspot WiFi (opcional)
@@ -68,9 +68,9 @@ sudo raspi-config
 2. **Instalar extensão "Remote - SSH"**
 3. **Conectar ao Raspberry Pi:**
    - `Ctrl+Shift+P` → "Remote-SSH: Connect to Host"
-   - `pi@192.168.4.1`
+   - `matheus@192.168.15.8`
 4. **Abrir pasta do projeto:**
-   - `/home/pi/RaspMIDI`
+   - `/home/matheus/RaspMIDI`
 
 ### Método 2: Sincronização via Script
 
@@ -100,7 +100,7 @@ git pull origin main
 # Sincronizar automaticamente
 rsync -avz --exclude='venv/' --exclude='__pycache__/' \
   --exclude='*.pyc' --exclude='logs/' \
-  ./ pi@192.168.4.1:/home/pi/RaspMIDI/
+  ./ matheus@192.168.15.8:/home/matheus/RaspMIDI/
 ```
 
 ## 🎯 Workflow de Desenvolvimento
@@ -122,17 +122,17 @@ python remote_dev.py
 ### 3. Teste Remoto
 ```bash
 # Acessar interface web
-http://192.168.4.1:5000
+http://192.168.15.8:5000
 
 # Verificar logs
-ssh pi@192.168.4.1 "tail -f /home/pi/RaspMIDI/logs/raspmidi_*.log"
+ssh matheus@192.168.15.8 "tail -f /home/matheus/RaspMIDI/logs/raspmidi_*.log"
 ```
 
 ### 4. Debug Remoto
 ```bash
 # Conectar via SSH e verificar status
-ssh pi@192.168.4.1
-cd /home/pi/RaspMIDI
+ssh matheus@192.168.15.8
+cd /home/matheus/RaspMIDI
 ./start_raspberry.sh
 ```
 
@@ -141,28 +141,28 @@ cd /home/pi/RaspMIDI
 ### Logs em Tempo Real
 ```bash
 # Ver logs da aplicação
-ssh pi@192.168.4.1 "tail -f /home/pi/RaspMIDI/logs/raspmidi_*.log"
+ssh matheus@192.168.15.8 "tail -f /home/matheus/RaspMIDI/logs/raspmidi_*.log"
 
 # Ver logs do sistema
-ssh pi@192.168.4.1 "journalctl -u raspmidi -f"
+ssh matheus@192.168.15.8 "journalctl -u raspmidi -f"
 ```
 
 ### Verificar Status
 ```bash
 # Status da aplicação
-ssh pi@192.168.4.1 "cd /home/pi/RaspMIDI && ./start_raspberry.sh --status"
+ssh matheus@192.168.15.8 "cd /home/matheus/RaspMIDI && ./start_raspberry.sh --status"
 
 # Verificar dispositivos MIDI
-ssh pi@192.168.4.1 "aconnect -l"
+ssh matheus@192.168.15.8 "aconnect -l"
 ```
 
 ### Reiniciar Aplicação
 ```bash
 # Parar aplicação
-ssh pi@192.168.4.1 "pkill -f 'python.*run.py'"
+ssh matheus@192.168.15.8 "pkill -f 'python.*run.py'"
 
 # Iniciar aplicação
-ssh pi@192.168.4.1 "cd /home/pi/RaspMIDI && ./start_raspberry.sh"
+ssh matheus@192.168.15.8 "cd /home/matheus/RaspMIDI && ./start_raspberry.sh"
 ```
 
 ## 🔄 Automação
@@ -175,8 +175,8 @@ cat > deploy.sh << 'EOF'
 echo "🔄 Deploying to Raspberry Pi..."
 rsync -avz --exclude='venv/' --exclude='__pycache__/' \
   --exclude='*.pyc' --exclude='logs/' \
-  ./ pi@192.168.4.1:/home/pi/RaspMIDI/
-ssh pi@192.168.4.1 "cd /home/pi/RaspMIDI && \
+  ./ matheus@192.168.15.8:/home/matheus/RaspMIDI/
+ssh matheus@192.168.15.8 "cd /home/matheus/RaspMIDI && \
   source venv/bin/activate && \
   pip install -r requirements.txt && \
   pkill -f 'python.*run.py' && \
@@ -207,8 +207,8 @@ chmod +x .git/hooks/post-commit
 
 ### Via Rede Local
 1. Conectar Raspberry Pi à rede WiFi
-2. Descobrir IP: `ssh pi@192.168.4.1 "hostname -I"`
-3. Acessar: `http://[IP_DO_RASPBERRY]:5000`
+2. Descobrir IP: `ssh matheus@192.168.15.8 "hostname -I"`
+3. Acessar: `http://192.168.15.8:5000`
 
 ### Via Internet (com port forwarding)
 1. Configurar port forwarding no roteador
@@ -226,10 +226,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/RaspMIDI
-Environment=PATH=/home/pi/RaspMIDI/venv/bin
-ExecStart=/home/pi/RaspMIDI/venv/bin/python run.py
+User=matheus
+WorkingDirectory=/home/matheus/RaspMIDI
+Environment=PATH=/home/matheus/RaspMIDI/venv/bin
+ExecStart=/home/matheus/RaspMIDI/venv/bin/python run.py
 Restart=always
 RestartSec=10
 
@@ -249,7 +249,7 @@ sudo systemctl start raspmidi
 sudo apt install -y htop
 
 # Monitorar recursos
-ssh pi@192.168.4.1 "htop"
+ssh matheus@192.168.15.8 "htop"
 ```
 
 ### Configurar Backup Automático
@@ -257,10 +257,10 @@ ssh pi@192.168.4.1 "htop"
 # Criar script de backup
 cat > backup.sh << 'EOF'
 #!/bin/bash
-BACKUP_DIR="/home/pi/backups"
+BACKUP_DIR="/home/matheus/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
-tar -czf $BACKUP_DIR/raspmidi_$DATE.tar.gz /home/pi/RaspMIDI
+tar -czf $BACKUP_DIR/raspmidi_$DATE.tar.gz /home/matheus/RaspMIDI
 echo "Backup created: $BACKUP_DIR/raspmidi_$DATE.tar.gz"
 EOF
 
@@ -281,28 +281,28 @@ chmod +x backup.sh
 2. **Aplicação não inicia**
    ```bash
    # Verificar logs
-   ssh pi@192.168.4.1 "tail -f /home/pi/RaspMIDI/logs/raspmidi_*.log"
+   ssh matheus@192.168.15.8 "tail -f /home/matheus/RaspMIDI/logs/raspmidi_*.log"
    
    # Verificar dependências
-   ssh pi@192.168.4.1 "cd /home/pi/RaspMIDI && source venv/bin/activate && pip list"
+   ssh matheus@192.168.15.8 "cd /home/matheus/RaspMIDI && source venv/bin/activate && pip list"
    ```
 
 3. **Dispositivos MIDI não detectados**
    ```bash
    # Verificar permissões
-   ssh pi@192.168.4.1 "sudo usermod -a -G audio pi"
+   ssh matheus@192.168.15.8 "sudo usermod -a -G audio matheus"
    
    # Verificar dispositivos
-   ssh pi@192.168.4.1 "aconnect -l"
+   ssh matheus@192.168.15.8 "aconnect -l"
    ```
 
 4. **Porta 5000 não acessível**
    ```bash
    # Verificar firewall
-   ssh pi@192.168.4.1 "sudo ufw status"
+   ssh matheus@192.168.15.8 "sudo ufw status"
    
    # Verificar se aplicação está rodando
-   ssh pi@192.168.4.1 "netstat -tlnp | grep :5000"
+   ssh matheus@192.168.15.8 "netstat -tlnp | grep :5000"
    ```
 
 ## 📚 Recursos Adicionais
