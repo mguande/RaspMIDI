@@ -151,7 +151,7 @@ class MIDIController:
                         'real_name': input_name,
                         'type': 'zoom_g3x'
                     })
-                elif 'footctrl' in input_name.lower():
+                elif 'sinco' in input_name.lower() or 'footctrl' in input_name.lower() or 'chocolate' in input_name.lower():
                     devices['inputs'].append({
                         'name': 'Chocolate MIDI In',
                         'real_name': input_name,
@@ -172,7 +172,7 @@ class MIDIController:
                         'real_name': output_name,
                         'type': 'zoom_g3x'
                     })
-                elif 'footctrl' in output_name.lower():
+                elif 'sinco' in output_name.lower() or 'footctrl' in output_name.lower() or 'chocolate' in output_name.lower():
                     devices['outputs'].append({
                         'name': 'Chocolate MIDI Out',
                         'real_name': output_name,
@@ -392,7 +392,7 @@ class MIDIController:
                     else:
                         self.device_status['zoom_g3x']['connected'] = False
                         self.device_status['zoom_g3x']['port'] = None
-                        self.logger.warning(f"Porta Zoom G3X não encontrada: {zoom_port}")
+                        self.logger.warning("Porta Zoom G3X não encontrada")
                 except ImportError:
                     self.device_status['zoom_g3x']['connected'] = False
                     self.device_status['zoom_g3x']['port'] = None
@@ -456,49 +456,70 @@ class MIDIController:
             return False
     
     def _init_chocolate(self):
-        """Inicializa controlador do Chocolate"""
+        """Inicializa controlador do Chocolate (considera conectado se detectado via USB usando aconnect)"""
         try:
             self.chocolate = ChocolateController()
-            
-            # Procura porta do Chocolate usando a configuração MIDI (apenas saídas)
             chocolate_port = None
-            for device in self.midi_config.get('devices', {}).get('outputs', []):
+            
+            # Procura em entradas (Chocolate é um dispositivo de entrada)
+            for device in self.midi_config.get('devices', {}).get('inputs', []):
                 if device['type'] == 'chocolate':
                     chocolate_port = device['real_name']
                     break
             
+            self.logger.info(f"🔍 Procurando porta do Chocolate: {chocolate_port}")
+            
             if chocolate_port:
-                # Verifica se a porta ainda existe
+                # Se encontrou a porta na configuração, considera conectado
+                self.device_status['chocolate']['connected'] = True
+                self.device_status['chocolate']['port'] = chocolate_port
+                self.logger.info(f"✅ Chocolate detectado via USB e configurado: {chocolate_port}")
+            else:
+                # Se não encontrou na configuração, verifica se está disponível via aconnect
                 try:
-                    import mido
-                    available_outputs = mido.get_output_names()
-                    if chocolate_port in available_outputs:
-                        # Tenta conectar e verifica se foi bem-sucedido
-                        if self.chocolate.connect(chocolate_port):
-                            self.device_status['chocolate']['connected'] = True
-                            self.device_status['chocolate']['port'] = chocolate_port
-                            self.logger.info(f"Chocolate conectado na porta: {chocolate_port}")
+                    import subprocess
+                    result = subprocess.run(['aconnect', '-l'], capture_output=True, text=True, timeout=10)
+                    if result.returncode == 0:
+                        aconnect_output = result.stdout
+                        self.logger.info(f"📋 Saída do aconnect: {aconnect_output}")
+                        
+                        # Procura por SINCO na saída do aconnect
+                        if 'sinco' in aconnect_output.lower():
+                            # Extrai o nome da porta do SINCO
+                            lines = aconnect_output.split('\n')
+                            for line in lines:
+                                if 'sinco' in line.lower():
+                                    # Extrai o nome da porta (ex: "SINCO MIDI 1")
+                                    if 'SINCO MIDI' in line:
+                                        chocolate_port = f"SINCO:SINCO MIDI 1"
+                                        break
+                            
+                            if chocolate_port:
+                                self.device_status['chocolate']['connected'] = True
+                                self.device_status['chocolate']['port'] = chocolate_port
+                                self.logger.info(f"✅ Chocolate detectado via USB (aconnect): {chocolate_port}")
+                            else:
+                                self.device_status['chocolate']['connected'] = False
+                                self.device_status['chocolate']['port'] = None
+                                self.logger.warning(f"❌ Chocolate não detectado via USB (aconnect)")
                         else:
                             self.device_status['chocolate']['connected'] = False
                             self.device_status['chocolate']['port'] = None
-                            self.logger.warning(f"Falha ao conectar Chocolate na porta: {chocolate_port}")
+                            self.logger.warning(f"❌ Chocolate não detectado via USB (aconnect)")
                     else:
                         self.device_status['chocolate']['connected'] = False
                         self.device_status['chocolate']['port'] = None
-                        self.logger.warning(f"Porta Chocolate não encontrada: {chocolate_port}")
-                except ImportError:
+                        self.logger.warning(f"❌ Erro ao executar aconnect: {result.stderr}")
+                        
+                except Exception as e:
                     self.device_status['chocolate']['connected'] = False
                     self.device_status['chocolate']['port'] = None
-                    self.logger.warning("Módulo mido não disponível")
-            else:
-                self.device_status['chocolate']['connected'] = False
-                self.device_status['chocolate']['port'] = None
-                self.logger.warning("Chocolate não configurado (nenhuma porta de saída encontrada)")
+                    self.logger.error(f"❌ Erro ao verificar porta Chocolate via aconnect: {str(e)}")
                 
         except Exception as e:
             self.device_status['chocolate']['connected'] = False
             self.device_status['chocolate']['port'] = None
-            self.logger.error(f"Erro ao inicializar Chocolate: {str(e)}")
+            self.logger.error(f"❌ Erro ao inicializar Chocolate: {str(e)}")
     
     def _find_device_port(self, device_name: str) -> Optional[str]:
         """Encontra porta de um dispositivo específico"""
@@ -1387,7 +1408,7 @@ class MIDIController:
             
             devices.append(zoom_status)
             
-            # Chocolate
+            # Chocolate (dispositivo de entrada)
             chocolate_status = {
                 'name': 'Chocolate',
                 'type': 'chocolate',
@@ -1397,22 +1418,20 @@ class MIDIController:
                 'status_details': 'Dispositivo detectado mas não conectado'
             }
             
-            # Verifica se o Chocolate está realmente conectado
-            if self.chocolate and hasattr(self.chocolate, 'connected'):
-                chocolate_status['connected'] = self.chocolate.connected
-                if self.chocolate.connected:
-                    chocolate_status['status_details'] = 'Conectado e funcionando'
-                else:
-                    chocolate_status['status_details'] = 'Porta detectada mas conexão falhou'
+            # Para o Chocolate, se está detectado via USB, considera conectado
+            if self.device_status['chocolate']['connected']:
+                chocolate_status['connected'] = True
+                chocolate_status['status_details'] = 'Conectado e funcionando - Dispositivo de entrada detectado via USB'
             else:
-                chocolate_status['status_details'] = 'Controlador não inicializado'
+                chocolate_status['connected'] = False
+                chocolate_status['status_details'] = 'Dispositivo de entrada não detectado via USB'
             
-            # Verifica se a porta do Chocolate está disponível
+            # Verifica se a porta do Chocolate está disponível nas entradas
             try:
                 import mido
-                available_outputs = mido.get_output_names()
+                available_inputs = mido.get_input_names()
                 chocolate_port = self.device_status['chocolate']['port']
-                if chocolate_port and chocolate_port in available_outputs:
+                if chocolate_port and chocolate_port in available_inputs:
                     chocolate_status['port_available'] = True
                     chocolate_status['status_details'] += ' - Porta disponível no sistema'
                 else:

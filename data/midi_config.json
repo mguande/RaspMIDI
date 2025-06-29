@@ -6,29 +6,24 @@
     "inputs": [
       {
         "name": "Chocolate MIDI In",
-        "real_name": "FootCtrlPlus-Bt 0",
+        "real_name": "SINCO:SINCO MIDI 1 24:0",
         "type": "chocolate"
       },
       {
         "name": "Zoom G3X MIDI In",
-        "real_name": "ZOOM G Series 1",
+        "real_name": "ZOOM G Series:ZOOM G Series MIDI 1 28:0",
         "type": "zoom_g3x"
       }
     ],
     "outputs": [
       {
-        "name": "Microsoft GS Wavetable Synth 0",
-        "real_name": "Microsoft GS Wavetable Synth 0",
-        "type": "generic"
-      },
-      {
         "name": "Chocolate MIDI Out",
-        "real_name": "FootCtrlPlus-Bt 1",
+        "real_name": "SINCO:SINCO MIDI 1 24:0",
         "type": "chocolate"
       },
       {
         "name": "Zoom G3X MIDI Out",
-        "real_name": "ZOOM G Series 2",
+        "real_name": "ZOOM G Series:ZOOM G Series MIDI 1 28:0",
         "type": "zoom_g3x"
       }
     ]

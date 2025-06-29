@@ -20,13 +20,26 @@ class ChocolateController:
     def connect(self, port_name: str) -> bool:
         """Conecta ao Chocolate MIDI"""
         try:
+            self.logger.info(f"🔌 Tentando conectar Chocolate na porta: {port_name}")
+            self.logger.info(f"📋 Verificando se a porta existe...")
+            
+            # Verifica se a porta existe antes de tentar conectar
+            available_outputs = mido.get_output_names()
+            self.logger.info(f"📋 Portas de saída disponíveis: {available_outputs}")
+            
+            if port_name not in available_outputs:
+                self.logger.error(f"❌ Porta {port_name} não encontrada nas saídas disponíveis")
+                return False
+            
+            self.logger.info(f"✅ Porta {port_name} encontrada, tentando abrir...")
             self.port = mido.open_output(port_name)
             self.connected = True
-            self.logger.info(f"Chocolate MIDI conectado na porta: {port_name}")
+            self.logger.info(f"✅ Chocolate MIDI conectado na porta: {port_name}")
             return True
             
         except Exception as e:
-            self.logger.error(f"Erro ao conectar Chocolate MIDI: {str(e)}")
+            self.logger.error(f"❌ Erro ao conectar Chocolate MIDI: {str(e)}")
+            self.logger.error(f"❌ Tipo do erro: {type(e).__name__}")
             return False
     
     def disconnect(self):

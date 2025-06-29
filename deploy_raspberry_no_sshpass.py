@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Script para deploy automático no Raspberry Pi
+Script para deploy automático no Raspberry Pi (sem sshpass)
 """
 
 import os
 import subprocess
 import sys
 import time
-import shutil
 
 # Configurações do Raspberry Pi
 RASPBERRY_IP = "192.168.15.8"
@@ -15,18 +14,9 @@ RASPBERRY_USER = "matheus"
 RASPBERRY_PASSWORD = "matheus"
 RASPBERRY_PATH = f"/home/{RASPBERRY_USER}/RaspMIDI"
 
-def check_sshpass():
-    """Verifica se sshpass está disponível"""
-    return shutil.which('sshpass') is not None
-
-def run_ssh_command(command, use_password=True):
+def run_ssh_command(command):
     """Executa comando SSH no Raspberry Pi"""
-    if use_password and check_sshpass():
-        # Usa sshpass para automatizar a senha
-        ssh_cmd = f'sshpass -p "{RASPBERRY_PASSWORD}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "{command}"'
-    else:
-        # Usa SSH normal (pedirá senha manualmente)
-        ssh_cmd = f'ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "{command}"'
+    ssh_cmd = f'ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "{command}"'
     
     try:
         result = subprocess.run(ssh_cmd, shell=True, capture_output=True, text=True)
@@ -34,12 +24,9 @@ def run_ssh_command(command, use_password=True):
     except Exception as e:
         return False, "", str(e)
 
-def run_scp_command(local_file, remote_path, use_password=True):
+def run_scp_command(local_file, remote_path):
     """Copia arquivo para o Raspberry Pi"""
-    if use_password and check_sshpass():
-        scp_cmd = f'sshpass -p "{RASPBERRY_PASSWORD}" scp -o StrictHostKeyChecking=no "{local_file}" {RASPBERRY_USER}@{RASPBERRY_IP}:{remote_path}'
-    else:
-        scp_cmd = f'scp -o StrictHostKeyChecking=no "{local_file}" {RASPBERRY_USER}@{RASPBERRY_IP}:{remote_path}'
+    scp_cmd = f'scp -o StrictHostKeyChecking=no "{local_file}" {RASPBERRY_USER}@{RASPBERRY_IP}:{remote_path}'
     
     try:
         result = subprocess.run(scp_cmd, shell=True, capture_output=True, text=True)
@@ -100,18 +87,11 @@ def check_application_status():
 
 def main():
     """Função principal"""
-    print("🚀 Deploy automático para Raspberry Pi")
+    print("🚀 Deploy automático para Raspberry Pi (sem sshpass)")
     print(f"📍 IP: {RASPBERRY_IP}")
     print(f"👤 Usuário: {RASPBERRY_USER}")
+    print("⚠️ Você precisará digitar a senha manualmente para cada comando SSH")
     print()
-    
-    # Verifica se sshpass está disponível
-    if check_sshpass():
-        print("✅ sshpass encontrado - deploy automático")
-        use_password = True
-    else:
-        print("⚠️ sshpass não encontrado - você precisará digitar a senha manualmente")
-        use_password = False
     
     # Deploy dos arquivos principais
     files_to_deploy = [

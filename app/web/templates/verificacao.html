@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RaspMIDI - Verificação do Sistema</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <style>
+        .verificacao-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .verificacao-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .verificacao-title {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .verificacao-subtitle {
+            color: var(--text-color);
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+        
+        .verificacao-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .verificacao-btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .verificacao-btn.zoom-patches {
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+        }
+        
+        .verificacao-btn.zoom-patches:hover {
+            background: linear-gradient(135deg, #e55a2b, #e0851a);
+            transform: translateY(-2px);
+        }
+        
+        .verificacao-btn.device-status {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+        }
+        
+        .verificacao-btn.device-status:hover {
+            background: linear-gradient(135deg, #45a049, #3d8b40);
+            transform: translateY(-2px);
+        }
+        
+        .verificacao-btn.midi-test {
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+        }
+        
+        .verificacao-btn.midi-test:hover {
+            background: linear-gradient(135deg, #1976D2, #1565C0);
+            transform: translateY(-2px);
+        }
+        
+        .verificacao-btn.system-info {
+            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+        }
+        
+        .verificacao-btn.system-info:hover {
+            background: linear-gradient(135deg, #7B1FA2, #6A1B9A);
+            transform: translateY(-2px);
+        }
+        
+        .shell-output {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #00ff00;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            position: relative;
+        }
+        
+        .shell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .shell-title {
+            color: #fff;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .shell-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .shell-btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            background: #333;
+            color: #fff;
+            transition: background 0.3s ease;
+        }
+        
+        .shell-btn:hover {
+            background: #555;
+        }
+        
+        .shell-content {
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .log-time {
+            color: #888;
+            min-width: 80px;
+        }
+        
+        .log-prompt {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        
+        .log-text {
+            color: #fff;
+        }
+        
+        .log-error {
+            color: #ff6b6b;
+        }
+        
+        .log-success {
+            color: #51cf66;
+        }
+        
+        .log-info {
+            color: #74c0fc;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .back-btn:hover {
+            background: var(--secondary-color);
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn">
+        <i class="fas fa-arrow-left"></i>
+        Voltar
+    </a>
+    
+    <div class="verificacao-container">
+        <div class="verificacao-header">
+            <h1 class="verificacao-title">🔧 Verificação do Sistema</h1>
+            <p class="verificacao-subtitle">Ferramentas de diagnóstico e teste do RaspMIDI</p>
+        </div>
+        
+        <div class="verificacao-buttons">
+            <button class="verificacao-btn zoom-patches" onclick="testZoomPatches()">
+                <i class="fas fa-list"></i>
+                Listar Patches Zoom G3X
+            </button>
+            
+            <button class="verificacao-btn device-status" onclick="checkDeviceStatus()">
+                <i class="fas fa-plug"></i>
+                Status dos Dispositivos
+            </button>
+            
+            <button class="verificacao-btn midi-test" onclick="testMidiConnection()">
+                <i class="fas fa-music"></i>
+                Teste de Conexão MIDI
+            </button>
+            
+            <button class="verificacao-btn system-info" onclick="getSystemInfo()">
+                <i class="fas fa-info-circle"></i>
+                Informações do Sistema
+            </button>
+            
+            <button class="btn btn-primary" onclick="testZoomPatchNames()">
+                <i class="fas fa-music"></i>
+                Testar Nomes dos Patches Zoom G3X
+            </button>
+            
+            <button class="btn btn-info" onclick="listZoomPatches()">
+                <i class="fas fa-list"></i>
+                Listar Patches Zoom G3X
+            </button>
+            
+            <button class="btn btn-success" onclick="testDeviceConnection()">
+                <i class="fas fa-plug"></i>
+                Testar Conexão de Dispositivos
+            </button>
+            
+            <button class="btn btn-warning" onclick="testMidiCommunication()">
+                <i class="fas fa-exchange-alt"></i>
+                Testar Comunicação MIDI
+            </button>
+            
+            <button class="btn btn-secondary" onclick="clearOutput()">
+                <i class="fas fa-trash"></i>
+                Limpar Saída
+            </button>
+        </div>
+        
+        <div class="shell-output">
+            <div class="shell-header">
+                <div class="shell-title">📡 Console de Verificação</div>
+                <div class="shell-controls">
+                    <button class="shell-btn" onclick="clearShell()">
+                        <i class="fas fa-trash"></i> Limpar
+                    </button>
+                    <button class="shell-btn" onclick="exportLog()">
+                        <i class="fas fa-download"></i> Exportar
+                    </button>
+                </div>
+            </div>
+            <div id="shell-content" class="shell-content">
+                <div class="log-entry">
+                    <span class="log-time">--:--:--</span>
+                    <span class="log-prompt">$</span>
+                    <span class="log-text">Sistema de verificação inicializado. Selecione uma opção acima para começar.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let logEntries = [];
+        
+        function addLogEntry(message, type = 'info') {
+            const now = new Date();
+            const time = now.toLocaleTimeString();
+            const entry = {
+                time: time,
+                message: message,
+                type: type
+            };
+            
+            logEntries.push(entry);
+            updateShellDisplay();
+        }
+        
+        function updateShellDisplay() {
+            const content = document.getElementById('shell-content');
+            content.innerHTML = logEntries.map(entry => {
+                const typeClass = entry.type === 'error' ? 'log-error' : 
+                                 entry.type === 'success' ? 'log-success' : 
+                                 entry.type === 'info' ? 'log-info' : 'log-text';
+                
+                return `
+                    <div class="log-entry">
+                        <span class="log-time">${entry.time}</span>
+                        <span class="log-prompt">$</span>
+                        <span class="${typeClass}">${entry.message}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Auto-scroll to bottom
+            content.scrollTop = content.scrollHeight;
+        }
+        
+        function clearShell() {
+            logEntries = [];
+            updateShellDisplay();
+            addLogEntry('Console limpo.', 'info');
+        }
+        
+        function exportLog() {
+            const logText = logEntries.map(entry => 
+                `[${entry.time}] ${entry.message}`
+            ).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `raspmidi-verificacao-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.log`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            addLogEntry('Log exportado com sucesso.', 'success');
+        }
+        
+        async function testZoomPatches() {
+            addLogEntry('Iniciando teste de patches da Zoom G3X...', 'info');
+            
+            try {
+                // Testa cada banco (A-J)
+                const banks = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+                
+                for (const bank of banks) {
+                    addLogEntry(`Testando banco ${bank}...`, 'info');
+                    
+                    const response = await fetch(`/api/midi/zoom/patches/${bank}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const patches = data.data;
+                        addLogEntry(`Banco ${bank}: ${patches.length} patches encontrados`, 'success');
+                        
+                        // Mostra os primeiros 3 patches como exemplo
+                        patches.slice(0, 3).forEach(patch => {
+                            addLogEntry(`  Patch ${patch.number}: "${patch.name}"`, 'info');
+                        });
+                        
+                        if (patches.length > 3) {
+                            addLogEntry(`  ... e mais ${patches.length - 3} patches`, 'info');
+                        }
+                    } else {
+                        addLogEntry(`Erro no banco ${bank}: ${data.error}`, 'error');
+                    }
+                }
+                
+                addLogEntry('Teste de patches da Zoom G3X concluído.', 'success');
+                
+            } catch (error) {
+                addLogEntry(`Erro ao testar patches: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkDeviceStatus() {
+            addLogEntry('Verificando status dos dispositivos...', 'info');
+            
+            try {
+                const response = await fetch('/api/midi/devices/status_detailed');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const devices = data.data;
+                    addLogEntry(`Encontrados ${devices.length} dispositivos:`, 'success');
+                    
+                    devices.forEach(device => {
+                        const status = device.connected ? 'Conectado' : 'Desconectado';
+                        const statusClass = device.connected ? 'success' : 'error';
+                        addLogEntry(`  ${device.name}: ${status}`, statusClass);
+                        
+                        if (device.port) {
+                            addLogEntry(`    Porta: ${device.port}`, 'info');
+                        }
+                        
+                        if (device.last_pc !== null && device.last_pc !== undefined) {
+                            addLogEntry(`    Último PC: ${device.last_pc}`, 'info');
+                        }
+                    });
+                } else {
+                    addLogEntry(`Erro ao verificar dispositivos: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry(`Erro ao verificar dispositivos: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMidiConnection() {
+            addLogEntry('Testando conexão MIDI...', 'info');
+            
+            try {
+                // Testa dispositivos disponíveis
+                const response = await fetch('/api/midi/devices/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const inputs = data.data.inputs || [];
+                    const outputs = data.data.outputs || [];
+                    
+                    addLogEntry(`Dispositivos MIDI encontrados:`, 'success');
+                    addLogEntry(`  Entrada: ${inputs.length} dispositivos`, 'info');
+                    addLogEntry(`  Saída: ${outputs.length} dispositivos`, 'info');
+                    
+                    inputs.forEach(device => {
+                        addLogEntry(`    Entrada: ${device.name}`, 'info');
+                    });
+                    
+                    outputs.forEach(device => {
+                        addLogEntry(`    Saída: ${device.name}`, 'info');
+                    });
+                } else {
+                    addLogEntry(`Erro ao listar dispositivos: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry(`Erro ao testar conexão MIDI: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getSystemInfo() {
+            addLogEntry('Obtendo informações do sistema...', 'info');
+            
+            try {
+                // Informações básicas do navegador
+                addLogEntry('Informações do navegador:', 'info');
+                addLogEntry(`  User Agent: ${navigator.userAgent}`, 'info');
+                addLogEntry(`  Plataforma: ${navigator.platform}`, 'info');
+                addLogEntry(`  Idioma: ${navigator.language}`, 'info');
+                
+                // Informações da tela
+                addLogEntry('Informações da tela:', 'info');
+                addLogEntry(`  Resolução: ${screen.width}x${screen.height}`, 'info');
+                addLogEntry(`  Profundidade de cor: ${screen.colorDepth} bits`, 'info');
+                
+                // Testa conectividade com a API
+                addLogEntry('Testando conectividade com a API...', 'info');
+                const startTime = Date.now();
+                const response = await fetch('/api/midi/devices/list');
+                const endTime = Date.now();
+                const latency = endTime - startTime;
+                
+                if (response.ok) {
+                    addLogEntry(`API respondendo em ${latency}ms`, 'success');
+                } else {
+                    addLogEntry(`API retornou status ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry(`Erro ao obter informações do sistema: ${error.message}`, 'error');
+            }
+        }
+        
+        function listZoomPatches() {
+            addOutput('$ Testando listagem de patches da Zoom G3X...', 'command');
+            
+            fetch('/api/midi/zoom/patches/A')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addOutput('✅ Patches do banco A carregados com sucesso!', 'success');
+                        addOutput('📋 Lista de patches:', 'info');
+                        
+                        data.data.forEach(patch => {
+                            addOutput(`   Patch ${patch.number}: "${patch.name}"`, 'info');
+                        });
+                        
+                        addOutput(`📊 Total: ${data.data.length} patches encontrados`, 'info');
+                    } else {
+                        addOutput(`❌ Erro ao carregar patches: ${data.error}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addOutput(`❌ Erro na requisição: ${error.message}`, 'error');
+                });
+        }
+
+        function testZoomPatchNames() {
+            addOutput('$ Testando leitura de nomes de patches da Zoom G3X...', 'command');
+            addOutput('🔍 Iniciando teste detalhado com diferentes métodos SysEx...', 'info');
+            
+            // Testa diferentes bancos para ver se conseguimos ler os nomes
+            const banks = ['A', 'B', 'C'];
+            let testedBanks = 0;
+            
+            banks.forEach(bank => {
+                setTimeout(() => {
+                    addOutput(`📂 Testando banco ${bank} com análise detalhada...`, 'info');
+                    
+                    fetch(`/api/midi/zoom/test-patch-names/${bank}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            testedBanks++;
+                            
+                            if (data.success) {
+                                addOutput(`✅ Banco ${bank} analisado com sucesso!`, 'success');
+                                addOutput(`📊 Estatísticas do banco ${bank}:`, 'info');
+                                addOutput(`   • Total de patches: ${data.total_patches}`, 'info');
+                                addOutput(`   • Nomes reais: ${data.real_names_count}`, 'info');
+                                addOutput(`   • Nomes genéricos: ${data.generic_names_count}`, 'info');
+                                
+                                if (data.real_names_count > 0) {
+                                    addOutput(`🎉 SUCESSO! Encontrados ${data.real_names_count} nomes reais!`, 'success');
+                                    addOutput(`📋 Exemplos de nomes reais:`, 'info');
+                                    data.real_names.slice(0, 5).forEach(patch => {
+                                        addOutput(`   ✅ Patch ${patch.number}: "${patch.name}"`, 'success');
+                                    });
+                                } else {
+                                    addOutput(`⚠️ Apenas nomes genéricos encontrados no banco ${bank}`, 'warning');
+                                    addOutput(`📋 Exemplos de nomes genéricos:`, 'info');
+                                    data.generic_names.slice(0, 3).forEach(patch => {
+                                        addOutput(`   ❌ Patch ${patch.number}: "${patch.name}"`, 'warning');
+                                    });
+                                }
+                                
+                                // Mostra todos os patches se houver poucos
+                                if (data.total_patches <= 10) {
+                                    addOutput(`📋 Lista completa do banco ${bank}:`, 'info');
+                                    data.patches.forEach(patch => {
+                                        const status = patch.name.startsWith('Patch ') ? '❌' : '✅';
+                                        addOutput(`   ${status} Patch ${patch.number}: "${patch.name}"`, 'info');
+                                    });
+                                }
+                            } else {
+                                addOutput(`❌ Erro no banco ${bank}: ${data.error}`, 'error');
+                            }
+                            
+                            if (testedBanks === banks.length) {
+                                addOutput('🏁 Teste detalhado de nomes de patches concluído!', 'info');
+                                addOutput('💡 Dica: Se apenas nomes genéricos aparecem, pode ser necessário:', 'info');
+                                addOutput('   • Verificar se a Zoom G3X está conectada via USB', 'info');
+                                addOutput('   • Verificar se a alimentação externa está conectada', 'info');
+                                addOutput('   • Verificar se os drivers estão instalados', 'info');
+                                addOutput('   • Tentar reiniciar a Zoom G3X', 'info');
+                            }
+                        })
+                        .catch(error => {
+                            testedBanks++;
+                            addOutput(`❌ Erro ao testar banco ${bank}: ${error.message}`, 'error');
+                            
+                            if (testedBanks === banks.length) {
+                                addOutput('🏁 Teste detalhado de nomes de patches concluído!', 'info');
+                            }
+                        });
+                }, testedBanks * 1500); // Delay maior entre testes
+            });
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            addLogEntry('Sistema de verificação carregado com sucesso.', 'success');
+        });
+    </script>
+</body>
+</html> 

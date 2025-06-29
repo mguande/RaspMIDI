@@ -78,6 +78,11 @@ def create_app(config_name=None):
         def palco():
             return render_template('palco.html')
         
+        # Rota de verificação do sistema
+        @app.route('/verificacao')
+        def verificacao():
+            return render_template('verificacao.html')
+        
         # Rota de status
         @app.route('/status')
         def status():

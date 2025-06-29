@@ -129,15 +129,15 @@ class ZoomG3XController:
     def send_cc(self, channel: int, cc: int, value: int) -> bool:
         """Envia mensagem Control Change"""
         try:
-            if not self.connected:
+            if not self.connected or self.port is None:
                 return False
-            
-            message = mido.Message('control_change', channel=channel, control=cc, value=value)
+
+            message = mido.Message('control_change', channel=channel, control=cc, value=int(value))
             self.port.send(message)
-            
+
             self.logger.debug(f"CC enviado: Channel={channel}, CC={cc}, Value={value}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Erro ao enviar CC: {str(e)}")
             return False
@@ -145,15 +145,15 @@ class ZoomG3XController:
     def send_pc(self, channel: int, program: int) -> bool:
         """Envia mensagem Program Change"""
         try:
-            if not self.connected:
+            if not self.connected or self.port is None:
                 return False
-            
+
             message = mido.Message('program_change', channel=channel, program=program)
             self.port.send(message)
-            
+
             self.logger.debug(f"PC enviado: Channel={channel}, Program={program}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Erro ao enviar PC: {str(e)}")
             return False
@@ -210,11 +210,9 @@ class ZoomG3XController:
                         if isinstance(value, (int, float)):
                             if value <= 100:  # Assume que está em 0-100
                                 value = int((value / 100) * 127)
-                            value = max(0, min(127, value))
-                            
+                            value = max(0, min(127, int(value)))
                             cc_number = base_cc + param_cc_offset
-                            self.send_cc(0, cc_number, value)
-                            
+                            self.send_cc(0, cc_number, int(value))
         except Exception as e:
             self.logger.error(f"Erro ao enviar parâmetros do efeito {effect_name}: {str(e)}")
     
@@ -227,34 +225,152 @@ class ZoomG3XController:
         }
     
     def get_bank_patches(self, bank_number: int) -> Optional[list]:
-        """Tenta importar patches de um banco específico da Zoom G3X"""
+        """Tenta importar patches de um banco específico da Zoom G3X usando diferentes métodos SysEx."""
         try:
-            if not self.connected:
+            if not self.connected or self.port is None:
                 self.logger.warning("Zoom G3X não está conectado para importar patches")
                 return None
-            
+
             if bank_number < 0 or bank_number > 9:
                 self.logger.error(f"Número de banco inválido: {bank_number}")
                 return None
-            
+
             patches = []
-            
-            # Tenta ler patches do banco selecionado
-            # Nota: A Zoom G3X pode não suportar leitura de nomes via MIDI
-            # Neste caso, retornamos patches padrão
+            self.logger.info(f"Tentando ler patches do banco {bank_number} da Zoom G3X...")
+
             for i in range(10):
                 patch_number = bank_number * 10 + i
                 patch_name = f"Patch {patch_number}"
-                
+
+                # Tenta diferentes métodos para ler o nome do patch
+                patch_name = self._try_read_patch_name(patch_number, bank_number)
+
                 patches.append({
                     'number': patch_number,
                     'name': patch_name,
                     'bank': bank_number
                 })
-            
+
             self.logger.info(f"Patches do banco {bank_number} carregados: {len(patches)} patches")
             return patches
-            
+
         except Exception as e:
             self.logger.error(f"Erro ao importar patches do banco {bank_number}: {str(e)}")
-            return None 
+            return None
+
+    def _try_read_patch_name(self, patch_number: int, bank_number: int) -> str:
+        """Tenta diferentes métodos para ler o nome de um patch específico."""
+        default_name = f"Patch {patch_number}"
+        
+        if not self.port:
+            return default_name
+
+        # Método 1: Comando SysEx específico da Zoom G3X para ler patch
+        try:
+            # Zoom G3X SysEx: F0 52 00 6E 64 [patch_number] F7
+            sysex_data = [0x52, 0x00, 0x6E, 0x64, patch_number]
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            self.logger.debug(f"Enviado SysEx para patch {patch_number}: {sysex_data}")
+            
+            # Aguarda resposta
+            import time
+            time.sleep(0.1)  # Pequena pausa para resposta
+            
+            # Tenta ler resposta (se disponível)
+            for msg in getattr(self.port, 'iter_pending', lambda: [])():
+                if msg.type == 'sysex' and len(msg.data) > 5:
+                    try:
+                        name_bytes = msg.data[5:]
+                        name = bytes(name_bytes).decode('ascii', errors='ignore').strip()
+                        if name and name != '':
+                            self.logger.info(f"Patch {patch_number} nome lido via SysEx: '{name}'")
+                            return name
+                    except Exception as e:
+                        self.logger.debug(f"Erro ao decodificar nome do patch {patch_number}: {e}")
+        except Exception as e:
+            self.logger.debug(f"Método 1 falhou para patch {patch_number}: {e}")
+
+        # Método 2: Comando SysEx alternativo da Zoom
+        try:
+            # Tentativa com formato diferente: F0 52 00 6E 65 [bank] [patch_in_bank] F7
+            patch_in_bank = patch_number % 10
+            sysex_data = [0x52, 0x00, 0x6E, 0x65, bank_number, patch_in_bank]
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            self.logger.debug(f"Enviado SysEx alternativo para patch {patch_number}: {sysex_data}")
+            
+            import time
+            time.sleep(0.1)
+            
+            for msg in getattr(self.port, 'iter_pending', lambda: [])():
+                if msg.type == 'sysex' and len(msg.data) > 6:
+                    try:
+                        name_bytes = msg.data[6:]
+                        name = bytes(name_bytes).decode('ascii', errors='ignore').strip()
+                        if name and name != '':
+                            self.logger.info(f"Patch {patch_number} nome lido via SysEx alternativo: '{name}'")
+                            return name
+                    except Exception as e:
+                        self.logger.debug(f"Erro ao decodificar nome alternativo do patch {patch_number}: {e}")
+        except Exception as e:
+            self.logger.debug(f"Método 2 falhou para patch {patch_number}: {e}")
+
+        # Método 3: Comando de dump de patch (se suportado)
+        try:
+            # Comando para solicitar dump de patch: F0 52 00 6E 66 [patch_number] F7
+            sysex_data = [0x52, 0x00, 0x6E, 0x66, patch_number]
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            self.logger.debug(f"Enviado comando dump para patch {patch_number}: {sysex_data}")
+            
+            import time
+            time.sleep(0.2)  # Mais tempo para dump completo
+            
+            for msg in getattr(self.port, 'iter_pending', lambda: [])():
+                if msg.type == 'sysex' and len(msg.data) > 10:
+                    try:
+                        # Em um dump de patch, o nome geralmente está em uma posição específica
+                        # Vamos tentar diferentes offsets
+                        for offset in [5, 10, 15, 20]:
+                            if len(msg.data) > offset + 16:  # Nome tem até 16 caracteres
+                                name_bytes = msg.data[offset:offset+16]
+                                name = bytes(name_bytes).decode('ascii', errors='ignore').strip('\x00')
+                                if name and name != '' and len(name) > 1:
+                                    self.logger.info(f"Patch {patch_number} nome lido via dump: '{name}'")
+                                    return name
+                    except Exception as e:
+                        self.logger.debug(f"Erro ao decodificar dump do patch {patch_number}: {e}")
+        except Exception as e:
+            self.logger.debug(f"Método 3 falhou para patch {patch_number}: {e}")
+
+        # Método 4: Tentativa com Program Change + leitura de resposta
+        try:
+            # Envia Program Change para o patch
+            pc_msg = mido.Message('program_change', channel=0, program=patch_number)
+            self.port.send(pc_msg)
+            self.logger.debug(f"Enviado PC {patch_number}")
+            
+            import time
+            time.sleep(0.1)
+            
+            # Tenta ler qualquer resposta
+            for msg in getattr(self.port, 'iter_pending', lambda: [])():
+                if msg.type == 'sysex':
+                    self.logger.debug(f"Resposta SysEx recebida para PC {patch_number}: {msg.data}")
+                    # Analisa a resposta para tentar extrair o nome
+                    if len(msg.data) > 5:
+                        try:
+                            name_bytes = msg.data[5:]
+                            name = bytes(name_bytes).decode('ascii', errors='ignore').strip()
+                            if name and name != '':
+                                self.logger.info(f"Patch {patch_number} nome lido via PC: '{name}'")
+                                return name
+                        except Exception as e:
+                            self.logger.debug(f"Erro ao decodificar resposta PC do patch {patch_number}: {e}")
+        except Exception as e:
+            self.logger.debug(f"Método 4 falhou para patch {patch_number}: {e}")
+
+        # Se nenhum método funcionou, retorna nome padrão
+        self.logger.debug(f"Nenhum método funcionou para patch {patch_number}, usando nome padrão")
+        return default_name 

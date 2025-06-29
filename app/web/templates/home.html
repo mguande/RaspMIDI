@@ -3,23 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <title>RaspMIDI - Escolha o Modo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #181c24; }
-        .mode-select-container { display: flex; flex-direction: column; gap: 40px; align-items: center; }
-        .mode-btn { font-size: 2.2rem; padding: 2rem 4rem; border-radius: 1.5rem; border: none; cursor: pointer; font-family: inherit; font-weight: bold; transition: background 0.2s, color 0.2s, box-shadow 0.2s; box-shadow: 0 4px 24px #0008; }
-        .mode-btn.edicao { background: #2d8cff; color: #fff; }
-        .mode-btn.edicao:hover { background: #1a5fb4; }
-        .mode-btn.palco { background: #ffb300; color: #222; }
-        .mode-btn.palco:hover { background: #b48400; color: #fff; }
-        .logo { font-size: 2.5rem; color: #fff; margin-bottom: 2rem; letter-spacing: 2px; font-weight: bold; }
+        body { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            background: #181c24; 
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .mode-select-container { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 30px; 
+            align-items: center; 
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+        }
+        
+        .mode-btn { 
+            font-size: 1.4rem; 
+            padding: 1.5rem 2rem; 
+            border-radius: 1rem; 
+            border: none; 
+            cursor: pointer; 
+            font-family: inherit; 
+            font-weight: bold; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 4px 24px #0008; 
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .mode-btn.edicao { 
+            background: linear-gradient(135deg, #2d8cff, #1a5fb4); 
+            color: #fff; 
+        }
+        .mode-btn.edicao:hover { 
+            background: linear-gradient(135deg, #1a5fb4, #0d3a7a); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px #000c;
+        }
+        
+        .mode-btn.palco { 
+            background: linear-gradient(135deg, #ffb300, #b48400); 
+            color: #222; 
+        }
+        .mode-btn.palco:hover { 
+            background: linear-gradient(135deg, #b48400, #8a6600); 
+            color: #fff; 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px #000c;
+        }
+        
+        .mode-btn.verificacao { 
+            background: linear-gradient(135deg, #28a745, #1e7e34); 
+            color: #fff; 
+        }
+        .mode-btn.verificacao:hover { 
+            background: linear-gradient(135deg, #1e7e34, #155724); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px #000c;
+        }
+        
+        .logo { 
+            font-size: 3rem; 
+            color: #fff; 
+            margin-bottom: 1rem; 
+            letter-spacing: 2px; 
+            font-weight: bold; 
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #ccc;
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .btn-icon {
+            font-size: 1.6rem;
+        }
     </style>
 </head>
 <body>
     <div class="mode-select-container">
         <div class="logo">🎛️ RaspMIDI</div>
-        <button class="mode-btn edicao" onclick="window.location.href='/edicao'">Modo Edição</button>
-        <button class="mode-btn palco" onclick="window.location.href='/palco'">Modo Palco</button>
+        <div class="subtitle">Controlador MIDI para Raspberry Pi</div>
+        
+        <button class="mode-btn edicao" onclick="window.location.href='/edicao'">
+            <i class="fas fa-edit btn-icon"></i>
+            Modo Edição
+        </button>
+        
+        <button class="mode-btn palco" onclick="window.location.href='/palco'">
+            <i class="fas fa-music btn-icon"></i>
+            Modo Palco
+        </button>
+        
+        <button class="mode-btn verificacao" onclick="window.location.href='/verificacao'">
+            <i class="fas fa-tools btn-icon"></i>
+            Verificação do Sistema
+        </button>
     </div>
 </body>
 </html> 

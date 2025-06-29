@@ -180,6 +180,17 @@ class RaspMIDI {
             this.loadDeviceStatus();
         });
 
+        // Event listeners para combos de dispositivos
+        document.getElementById('input-device')?.addEventListener('change', (e) => {
+            this.midiConfig.input_device = e.target.value;
+            this.renderDevices();
+        });
+        
+        document.getElementById('output-device')?.addEventListener('change', (e) => {
+            this.midiConfig.output_device = e.target.value;
+            this.renderDevices();
+        });
+
         // Menu de navegação do modo edição
         this.setupEdicaoMenu();
 
@@ -369,8 +380,7 @@ class RaspMIDI {
             if (data.success) {
                 this.devices = data.data;
                 this.renderDevices();
-                this.updateMonitorDeviceSelector();
-                this.updateOutputDeviceSelector();
+                this.populateAllDeviceSelects(); // Centraliza a população dos selects
             } else {
                 throw new Error(data.error);
             }
@@ -829,63 +839,66 @@ class RaspMIDI {
     }
     
     renderDevices() {
-        // Categoriza dispositivos por tipo (USB/Bluetooth) baseado no nome
-        const usbDevices = [];
-        const bluetoothDevices = [];
-        
-        // Processa dispositivos de entrada
-        const inputDevices = this.devices.inputs || [];
-        inputDevices.forEach(device => {
-            const deviceInfo = {
-                ...device,
-                type: 'input',
-                connected: false // Será determinado pelo status real
-            };
+        // Carrega a configuração MIDI antes de renderizar para ter os valores selecionados
+        this.loadMidiConfig().then(() => {
+            // Categoriza dispositivos por tipo (USB/Bluetooth) baseado no nome
+            const usbDevices = [];
+            const bluetoothDevices = [];
             
-            if (device.real_name.toLowerCase().includes('bt') || device.real_name.toLowerCase().includes('bluetooth')) {
-                bluetoothDevices.push(deviceInfo);
-            } else {
-                usbDevices.push(deviceInfo);
+            // Processa dispositivos de entrada
+            const inputDevices = this.devices.inputs || [];
+            inputDevices.forEach(device => {
+                const deviceInfo = {
+                    ...device,
+                    type: 'input',
+                    connected: false // Será determinado pelo status real
+                };
+                
+                if (device.real_name.toLowerCase().includes('bt') || device.real_name.toLowerCase().includes('bluetooth')) {
+                    bluetoothDevices.push(deviceInfo);
+                } else {
+                    usbDevices.push(deviceInfo);
+                }
+            });
+            
+            // Processa dispositivos de saída
+            const outputDevices = this.devices.outputs || [];
+            outputDevices.forEach(device => {
+                const deviceInfo = {
+                    ...device,
+                    type: 'output',
+                    connected: false // Será determinado pelo status real
+                };
+                
+                if (device.real_name.toLowerCase().includes('bt') || device.real_name.toLowerCase().includes('bluetooth')) {
+                    bluetoothDevices.push(deviceInfo);
+                } else {
+                    usbDevices.push(deviceInfo);
+                }
+            });
+            
+            // Renderiza dispositivos USB
+            const usbContainer = document.getElementById('usb-devices');
+            if (usbContainer) {
+                if (usbDevices.length === 0) {
+                    usbContainer.innerHTML = '<p class="text-center">Nenhum dispositivo USB encontrado</p>';
+                } else {
+                    const usbHtml = usbDevices.map(device => this.createDeviceCard(device)).join('');
+                    usbContainer.innerHTML = usbHtml;
+                }
+            }
+            
+            // Renderiza dispositivos Bluetooth
+            const btContainer = document.getElementById('bluetooth-devices');
+            if (btContainer) {
+                if (bluetoothDevices.length === 0) {
+                    btContainer.innerHTML = '<p class="text-center">Nenhum dispositivo Bluetooth encontrado</p>';
+                } else {
+                    const btHtml = bluetoothDevices.map(device => this.createDeviceCard(device)).join('');
+                    btContainer.innerHTML = btHtml;
+                }
             }
         });
-        
-        // Processa dispositivos de saída
-        const outputDevices = this.devices.outputs || [];
-        outputDevices.forEach(device => {
-            const deviceInfo = {
-                ...device,
-                type: 'output',
-                connected: false // Será determinado pelo status real
-            };
-            
-            if (device.real_name.toLowerCase().includes('bt') || device.real_name.toLowerCase().includes('bluetooth')) {
-                bluetoothDevices.push(deviceInfo);
-            } else {
-                usbDevices.push(deviceInfo);
-            }
-        });
-        
-        // Renderiza dispositivos USB
-        const usbContainer = document.getElementById('usb-devices');
-        if (usbContainer) {
-            if (usbDevices.length === 0) {
-                usbContainer.innerHTML = '<p class="text-center">Nenhum dispositivo USB encontrado</p>';
-            } else {
-                const usbHtml = usbDevices.map(device => this.createDeviceCard(device)).join('');
-                usbContainer.innerHTML = usbHtml;
-            }
-        }
-        
-        // Renderiza dispositivos Bluetooth
-        const btContainer = document.getElementById('bluetooth-devices');
-        if (btContainer) {
-            if (bluetoothDevices.length === 0) {
-                btContainer.innerHTML = '<p class="text-center">Nenhum dispositivo Bluetooth encontrado</p>';
-            } else {
-                const btHtml = bluetoothDevices.map(device => this.createDeviceCard(device)).join('');
-                btContainer.innerHTML = btHtml;
-            }
-        }
     }
     
     createDeviceCard(device) {
@@ -893,18 +906,52 @@ class RaspMIDI {
         const statusClass = isConnected ? 'connected' : 'disconnected';
         const statusText = isConnected ? 'Conectado' : 'Desconectado';
         
+        // Verifica se o dispositivo está selecionado na configuração MIDI
+        const isSelectedAsInput = this.midiConfig.input_device === device.name;
+        const isSelectedAsOutput = this.midiConfig.output_device === device.name;
+        const isSelected = isSelectedAsInput || isSelectedAsOutput;
+        
+        // Define cor de fundo e ícone baseado no tipo de dispositivo
+        let deviceClass = '';
+        let deviceIcon = '';
+        
+        if (device.type === 'input') {
+            deviceClass = 'device-input';
+            deviceIcon = '📥'; // Ícone de entrada
+        } else if (device.type === 'output') {
+            deviceClass = 'device-output';
+            deviceIcon = '📤'; // Ícone de saída
+        }
+        
+        // Define o botão baseado no status de seleção
+        let buttonHtml = '';
+        if (isSelected) {
+            buttonHtml = `
+                <button class="btn btn-success btn-small" disabled>
+                    <i class="fas fa-check"></i> Selecionado
+                </button>
+            `;
+        } else {
+            buttonHtml = `
+                <button class="btn btn-primary btn-small" onclick="app.selectDevice('${device.name}', '${device.type}')">
+                    Selecionar
+                </button>
+            `;
+        }
+        
         return `
-            <div class="device-item ${statusClass}">
-                <div class="device-name">${device.name}</div>
+            <div class="device-item ${statusClass} ${deviceClass} ${isSelected ? 'selected' : ''}">
+                <div class="device-header">
+                    <span class="device-icon">${deviceIcon}</span>
+                    <div class="device-name">${device.name}</div>
+                </div>
                 <div class="device-type">${device.type.toUpperCase()}</div>
                 <div class="device-status">
                     <div class="device-status-indicator ${statusClass}"></div>
                     <span>${statusText}</span>
                 </div>
                 <div class="device-actions">
-                    <button class="btn btn-primary btn-small" onclick="app.selectDevice('${device.name}', '${device.type}')">
-                        Selecionar
-                    </button>
+                    ${buttonHtml}
                 </div>
             </div>
         `;
@@ -934,6 +981,9 @@ class RaspMIDI {
                 outputSelect.innerHTML += `<option value="${device.name}" ${selected}>${device.name}</option>`;
             });
         }
+        
+        // Não chama renderDevices() aqui para evitar duplicação
+        // renderDevices() já é chamada em loadDevices()
     }
     
     updateStatusDisplay() {
@@ -1109,12 +1159,19 @@ class RaspMIDI {
             if (inputSelect) {
                 inputSelect.value = deviceName;
             }
+            // Atualiza a configuração MIDI
+            this.midiConfig.input_device = deviceName;
         } else if (deviceType === 'output') {
             const outputSelect = document.getElementById('output-device');
             if (outputSelect) {
                 outputSelect.value = deviceName;
             }
+            // Atualiza a configuração MIDI
+            this.midiConfig.output_device = deviceName;
         }
+        
+        // Recarrega os dispositivos para atualizar o estado dos botões
+        this.renderDevices();
         
         this.showNotification(`Dispositivo ${deviceName} selecionado`, 'info');
     }
@@ -2204,44 +2261,21 @@ class RaspMIDI {
     }
     
     async updateMonitoringStatus() {
-        try {
-            const response = await fetch('/api/midi/monitor/status');
-            const data = await response.json();
-            
-            if (data.success) {
-                const status = data.data;
-                
-                // Atualiza elementos de status se existirem
-                const deviceElement = document.getElementById('monitor-device');
-                const modeElement = document.getElementById('monitor-mode');
-                
-                if (deviceElement) {
-                    deviceElement.textContent = status.device || 'Desconhecido';
-                }
-                
-                if (modeElement) {
-                    modeElement.textContent = status.mode || 'Desconhecido';
-                }
-                
-                // Atualiza status de conectividade
-                if (status.active) {
-                    this.midiMonitor.active = true;
-                    this.midiMonitor.currentDevice = status.device;
-                } else {
-                    this.midiMonitor.active = false;
-                    this.midiMonitor.currentDevice = null;
-                    
-                    // Limpa informações se monitor estiver inativo
-                    if (deviceElement) {
-                        deviceElement.textContent = 'Nenhum';
-                    }
-                    if (modeElement) {
-                        modeElement.textContent = '-';
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Erro ao atualizar status do monitoramento:', error);
+        const statusElement = document.getElementById('monitor-status');
+        const deviceElement = document.getElementById('monitor-device');
+        const modeElement = document.getElementById('monitor-mode');
+        
+        if (statusElement) {
+            statusElement.textContent = this.midiMonitor.active ? 'Monitorando' : 'Desconectado';
+            statusElement.className = `stat-value ${this.midiMonitor.active ? 'connected' : 'disconnected'}`;
+        }
+        
+        if (deviceElement) {
+            deviceElement.textContent = this.midiMonitor.currentDevice || 'Nenhum';
+        }
+        
+        if (modeElement) {
+            modeElement.textContent = this.midiMonitor.active ? 'Ativo' : '-';
         }
     }
     
@@ -3295,6 +3329,66 @@ class RaspMIDI {
         });
         
         return effects;
+    }
+
+    populateAllDeviceSelects() {
+        // Popula todos os selects de dispositivos na página
+        const deviceSelects = [
+            'input-device',
+            'output-device', 
+            'output-device-select',
+            'monitor-input-device',
+            'patch-input-device',
+            'patch-output-device'
+        ];
+        
+        deviceSelects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            // Limpa opções existentes
+            select.innerHTML = '<option value="">Selecione...</option>';
+            
+            if (selectId.includes('input') || selectId.includes('monitor')) {
+                // Popula com dispositivos de entrada
+                const inputDevices = this.devices.inputs || [];
+                inputDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.name;
+                    option.textContent = `${device.name} (${device.real_name})`;
+                    select.appendChild(option);
+                });
+                
+                // Seleciona o dispositivo correto baseado na configuração
+                if (selectId === 'input-device' && this.midiConfig.input_device) {
+                    select.value = this.midiConfig.input_device;
+                } else if (selectId === 'monitor-input-device' && this.midiConfig.input_device) {
+                    select.value = this.midiConfig.input_device;
+                } else if (selectId === 'patch-input-device' && this.midiConfig.input_device) {
+                    select.value = this.midiConfig.input_device;
+                }
+            } else {
+                // Popula com dispositivos de saída
+                const outputDevices = this.devices.outputs || [];
+                outputDevices.forEach(device => {
+                    const option = document.createElement('option');
+                    option.value = device.name;
+                    option.textContent = `${device.name} (${device.real_name})`;
+                    select.appendChild(option);
+                });
+                
+                // Seleciona o dispositivo correto baseado na configuração
+                if (selectId === 'output-device' && this.midiConfig.output_device) {
+                    select.value = this.midiConfig.output_device;
+                } else if (selectId === 'output-device-select' && this.midiConfig.output_device) {
+                    select.value = this.midiConfig.output_device;
+                } else if (selectId === 'patch-output-device' && this.midiConfig.output_device) {
+                    select.value = this.midiConfig.output_device;
+                }
+            }
+        });
+        
+        console.log('✅ Todos os selects de dispositivos foram populados sem duplicações');
     }
 }
 

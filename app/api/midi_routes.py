@@ -1077,4 +1077,72 @@ def get_zoom_patches(bank_letter):
         return jsonify({
             'success': False,
             'error': str(e)
+        }), 500
+
+@midi_bp.route('/zoom/test-patch-names/<bank_letter>', methods=['GET'])
+def test_zoom_patch_names(bank_letter):
+    """Testa especificamente a leitura de nomes de patches da Zoom G3X com logs detalhados"""
+    try:
+        # Converte letra do banco para número
+        bank_mapping = {
+            'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4,
+            'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9
+        }
+        
+        if bank_letter not in bank_mapping:
+            return jsonify({
+                'success': False,
+                'error': 'Letra de banco inválida (A-J)'
+            }), 400
+        
+        bank_number = bank_mapping[bank_letter]
+        midi_controller = current_app.midi_controller
+        
+        if not midi_controller.zoom_g3x:
+            return jsonify({
+                'success': False,
+                'error': 'Controlador Zoom G3X não inicializado'
+            }), 500
+        
+        if not midi_controller.device_status['zoom_g3x']['connected']:
+            return jsonify({
+                'success': False,
+                'error': 'Zoom G3X não está conectado'
+            }), 500
+        
+        # Testa a leitura de patches com logs detalhados
+        logger.info(f"Iniciando teste detalhado de nomes de patches para banco {bank_letter}")
+        
+        patches = midi_controller.zoom_g3x.get_bank_patches(bank_number)
+        
+        if patches:
+            # Analisa os resultados
+            generic_names = [p for p in patches if p['name'].startswith('Patch ')]
+            real_names = [p for p in patches if not p['name'].startswith('Patch ')]
+            
+            result = {
+                'success': True,
+                'bank': bank_letter,
+                'total_patches': len(patches),
+                'real_names_count': len(real_names),
+                'generic_names_count': len(generic_names),
+                'patches': patches,
+                'real_names': real_names,
+                'generic_names': generic_names
+            }
+            
+            logger.info(f"Teste concluído: {len(real_names)} nomes reais, {len(generic_names)} genéricos")
+            
+            return jsonify(result)
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Não foi possível ler patches do banco'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Erro no teste de nomes de patches: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500 

@@ -76,7 +76,7 @@ class Config:
 class DevelopmentConfig(Config):
     """Configurações para desenvolvimento"""
     DEBUG = True
-    HOST = '127.0.0.1'
+    HOST = '0.0.0.0'
 
 class ProductionConfig(Config):
     """Configurações para produção"""

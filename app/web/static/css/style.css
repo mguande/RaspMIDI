@@ -1012,50 +1012,115 @@ body {
     margin-top: 20px;
 }
 
-.device-status-card {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border: 2px solid #dee2e6;
-    border-radius: 12px;
-    padding: 20px;
+/* Device Items Grid */
+.devices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+/* Device Item */
+.device-item {
+    background: var(--card-background);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: var(--shadow);
     transition: all 0.3s ease;
+    border-left: 4px solid var(--border-color);
 }
 
-.device-status-card:hover {
+.device-item:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
 }
 
-.device-status-card.connected {
+/* Device Input (Entrada) */
+.device-item.device-input {
+    background: linear-gradient(135deg, #e8f5e8, #d4edda);
+    border-left-color: #28a745;
+}
+
+.device-item.device-input .device-icon {
+    color: #28a745;
+}
+
+/* Device Output (Saída) */
+.device-item.device-output {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border-left-color: #2196f3;
+}
+
+.device-item.device-output .device-icon {
+    color: #2196f3;
+}
+
+/* Device Selected State */
+.device-item.selected {
+    border: 2px solid var(--success-color);
+    box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+    background: linear-gradient(135deg, #f8fff9, #e8f5e8);
+}
+
+.device-item.selected .device-name {
+    color: var(--success-color);
+    font-weight: 700;
+}
+
+.device-item.selected .device-actions .btn {
+    background-color: var(--success-color);
     border-color: var(--success-color);
-    background: linear-gradient(135deg, #d4edda, #c3e6cb);
+    color: white;
+    cursor: not-allowed;
 }
 
-.device-status-card.disconnected {
-    border-color: var(--accent-color);
-    background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+.device-item.selected .device-actions .btn:hover {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    transform: none;
 }
 
-.device-status-header {
+/* Device Header */
+.device-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #dee2e6;
+    gap: 10px;
+    margin-bottom: 10px;
 }
 
-.device-status-name {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: var(--primary-color);
+.device-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.device-name {
+    font-weight: 600;
+    color: var(--text-color);
+    flex: 1;
+}
+
+.device-type {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.device-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
 }
 
 .device-status-indicator {
-    width: 16px;
-    height: 16px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    border: 2px solid #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    background-color: var(--accent-color);
 }
 
 .device-status-indicator.connected {
@@ -1066,85 +1131,24 @@ body {
     background-color: var(--accent-color);
 }
 
-.device-status-details {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-.device-status-item {
+.device-actions {
     display: flex;
-    flex-direction: column;
+    justify-content: flex-end;
 }
 
-.device-status-label {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin-bottom: 2px;
+.device-actions .btn {
+    font-size: 0.85rem;
+    padding: 6px 12px;
 }
 
-.device-status-value {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--primary-color);
-}
-
-.device-status-value.port {
-    font-family: 'Courier New', monospace;
-    background: #f8f9fa;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.9rem;
-}
-
-.device-status-value.last-pc {
-    color: var(--warning-color);
-    font-weight: bold;
-}
-
-.device-status-info {
-    margin-top: 15px;
-    padding: 10px;
-    background: rgba(0,0,0,0.05);
-    border-radius: 6px;
-    border-left: 3px solid var(--primary-color);
-}
-
-.device-status-value.details {
-    font-size: 0.9rem;
-    color: #666;
-    font-style: italic;
-    line-height: 1.4;
-}
-
-.device-status-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-}
-
-.reconnect-device-btn {
-    background: var(--warning-color);
-    color: white;
-    border: none;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
+/* Device Status Cards (existing styles) */
+.device-status-card {
+    background: var(--card-background);
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: var(--shadow);
     transition: all 0.3s ease;
-}
-
-.reconnect-device-btn:hover {
-    background: #e67e22;
-    transform: translateY(-1px);
-}
-
-.reconnect-device-btn:disabled {
-    background: #95a5a6;
-    cursor: not-allowed;
-    transform: none;
+    border-left: 4px solid var(--border-color);
 }
 
 /* Edição Menu Navigation */
