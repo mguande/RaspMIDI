@@ -7,6 +7,7 @@ import sqlite3
 import json
 from datetime import datetime
 from typing import Dict, List, Optional
+import logging
 
 class Patch:
     """Modelo para patches do Zoom G3X"""
@@ -421,25 +422,57 @@ class DatabaseManager:
                 ))
             return patches
     
-    def update_patch(self, patch: Patch) -> bool:
-        """Atualiza um patch"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE patches 
-                SET name = ?, effects = ?, input_device = ?, input_channel = ?,
-                    output_device = ?, command_type = ?, zoom_bank = ?, zoom_patch = ?,
-                    program = ?, cc = ?, value = ?, note = ?, velocity = ?, updated_at = ?
-                WHERE id = ?
-            ''', (
-                patch.name, json.dumps(patch.effects), patch.input_device, 
-                patch.input_channel, patch.output_device, patch.command_type,
-                patch.zoom_bank, patch.zoom_patch, patch.program, patch.cc,
-                patch.value, patch.note, patch.velocity,
-                datetime.now().isoformat(), patch.id
-            ))
-            conn.commit()
-            return cursor.rowcount > 0
+    def update_patch(self, patch: Patch, partial_data: dict = None) -> bool:
+        """Atualiza um patch, preservando campos não enviados (merge). Adiciona logs detalhados."""
+        logger = logging.getLogger(__name__)
+        try:
+            logger.info(f"🔧 [DB] Iniciando atualização do patch ID {patch.id}")
+            if partial_data:
+                logger.info(f"📋 [DB] Dados recebidos para atualização: {partial_data}")
+            else:
+                logger.info(f"📋 [DB] Atualização completa do patch: {patch.to_dict()}")
+
+            # Busca o patch atual do banco
+            current_patch = self.get_patch(patch.id)
+            if not current_patch:
+                logger.error(f"❌ [DB] Patch {patch.id} não encontrado para atualização!")
+                return False
+            logger.info(f"📋 [DB] Patch atual no banco: {current_patch.to_dict()}")
+
+            # Merge dos dados: campos do patch recebido sobrescrevem os do atual
+            merged_dict = current_patch.to_dict()
+            if partial_data:
+                merged_dict.update(partial_data)
+            else:
+                merged_dict.update(patch.to_dict())
+            logger.info(f"📋 [DB] Dados finais para atualização: {merged_dict}")
+
+            # Cria novo objeto Patch com os dados mesclados
+            merged_patch = Patch.from_dict(merged_dict)
+
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE patches 
+                    SET name = ?, effects = ?, input_device = ?, input_channel = ?,
+                        output_device = ?, command_type = ?, zoom_bank = ?, zoom_patch = ?,
+                        program = ?, cc = ?, value = ?, note = ?, velocity = ?, updated_at = ?
+                    WHERE id = ?
+                ''', (
+                    merged_patch.name, json.dumps(merged_patch.effects), merged_patch.input_device, 
+                    merged_patch.input_channel, merged_patch.output_device, merged_patch.command_type,
+                    merged_patch.zoom_bank, merged_patch.zoom_patch, merged_patch.program, merged_patch.cc,
+                    merged_patch.value, merged_patch.note, merged_patch.velocity,
+                    datetime.now().isoformat(), merged_patch.id
+                ))
+                conn.commit()
+                logger.info(f"✅ [DB] Patch {merged_patch.id} atualizado com sucesso!")
+                return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"❌ [DB] Erro ao atualizar patch: {str(e)}")
+            import traceback
+            logger.error(f"📋 [DB] Traceback: {traceback.format_exc()}")
+            return False
     
     def delete_patch(self, patch_id: int) -> bool:
         """Deleta um patch"""

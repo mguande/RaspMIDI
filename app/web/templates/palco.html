@@ -5,81 +5,478 @@
     <title>RaspMIDI - Modo Palco</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
-        body { background: #181c24; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; }
-        .palco-container { max-width: 900px; margin: 40px auto; padding: 32px; background: #23283a; border-radius: 2rem; box-shadow: 0 4px 32px #000a; }
-        .bank-info { font-size: 1.3rem; margin-bottom: 2rem; text-align: center; }
-        .devices-list { display: flex; gap: 2rem; justify-content: center; margin-top: 2rem; }
-        .device-box { background: #1a1e2a; border-radius: 1rem; padding: 2rem 2.5rem; min-width: 220px; box-shadow: 0 2px 12px #0006; text-align: center; }
-        .device-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; }
-        .patch-info { font-size: 1.6rem; font-weight: bold; color: #ffb300; }
-        .reconnect-btn { margin-top: 1rem; background: #ff6b35; color: #fff; border: none; border-radius: 0.5rem; padding: 0.5rem 1rem; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        .reconnect-btn:hover { background: #e55a2b; }
-        .reconnect-btn:disabled { background: #666; cursor: not-allowed; }
-        .back-btn { margin-top: 2rem; display: block; background: #2d8cff; color: #fff; border: none; border-radius: 1rem; padding: 1rem 2.5rem; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        .back-btn:hover { background: #1a5fb4; }
+        body { 
+            background: #181c24; 
+            color: #fff; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0;
+            padding: 0;
+        }
+        
+        .palco-container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            position: relative;
+        }
+        
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #2d8cff;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .back-btn:hover { 
+            background: #1a5fb4; 
+            transform: scale(1.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-top: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            color: #ffb300;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .active-patch-info {
+            background: #23283a;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            border: 2px solid #ffb300;
+        }
+        
+        .active-patch-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ffb300;
+            margin-bottom: 1rem;
+        }
+        
+        .active-patch-details {
+            font-size: 1.1rem;
+            color: #ccc;
+        }
+        
+        .devices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .device-box { 
+            background: #1a1e2a; 
+            border-radius: 1rem; 
+            padding: 2rem; 
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            transition: all 0.3s;
+        }
+        
+        .device-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            border-color: #ffb300;
+        }
+        
+        .device-title { 
+            font-size: 1.4rem; 
+            font-weight: bold; 
+            margin-bottom: 1.5rem;
+            color: #ffb300;
+            text-align: center;
+        }
+        
+        .device-status {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+        }
+        
+        .status-connected {
+            background: rgba(0, 255, 0, 0.2);
+            color: #0f0;
+            border: 1px solid #0f0;
+        }
+        
+        .status-disconnected {
+            background: rgba(255, 0, 0, 0.2);
+            color: #f33;
+            border: 1px solid #f33;
+        }
+        
+        .device-info {
+            margin-bottom: 1rem;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #ccc;
+        }
+        
+        .info-value {
+            color: #ffb300;
+            font-weight: bold;
+        }
+        
+        .reconnect-btn { 
+            margin-top: 1rem; 
+            background: #ff6b35; 
+            color: #fff; 
+            border: none; 
+            border-radius: 0.5rem; 
+            padding: 0.8rem 1.5rem; 
+            font-size: 1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: background 0.2s;
+            width: 100%;
+        }
+        
+        .reconnect-btn:hover { 
+            background: #e55a2b; 
+        }
+        
+        .reconnect-btn:disabled { 
+            background: #666; 
+            cursor: not-allowed; 
+        }
+        
+        .no-active-patch {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+            padding: 2rem;
+        }
+        
+        .chocolate-channels {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .channel-btn {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .channel-btn:hover {
+            background: #555;
+            border-color: #ffb300;
+        }
+        
+        .channel-btn.active {
+            background: #ffb300;
+            color: #000;
+            border-color: #ffb300;
+        }
+        
+        .channel-btn.has-patch {
+            border-color: #0f0;
+        }
     </style>
 </head>
 <body>
     <div class="palco-container">
-        <div class="bank-info" id="palco-bank-info"><span id="palco-bank-name">-</span></div>
-        <div class="devices-list" id="palco-devices-list">
-            <!-- Dispositivos e patch/banco atual serão renderizados aqui -->
+        <button class="back-btn" onclick="window.location.href='/'">←</button>
+        
+        <div class="header">
+            <h1>🎸 Modo Palco</h1>
         </div>
-        <button class="back-btn" onclick="window.location.href='/'">Voltar</button>
+        
+        <div class="active-patch-info" id="active-patch-info">
+            <div class="no-active-patch" id="no-active-patch">
+                Nenhum patch ativo - Selecione um canal no Chocolate MIDI
+            </div>
+            <div id="active-patch-content" style="display: none;">
+                <div class="active-patch-name" id="active-patch-name">-</div>
+                <div class="active-patch-details" id="active-patch-details">-</div>
+            </div>
+        </div>
+        
+        <div class="devices-grid" id="devices-grid">
+            <!-- Dispositivos serão renderizados aqui -->
+        </div>
     </div>
+    
     <script>
+        let activePatch = null;
+        let chocolateChannels = [];
+        
         async function loadPalcoInfo() {
-            // Banco ativo
-            const bankResp = await fetch('/api/midi/banks/active');
-            const bankData = await bankResp.json();
-            if (bankData.success && bankData.data) {
-                document.getElementById('palco-bank-name').textContent = bankData.data.name || '-';
-                document.getElementById('palco-bank-info').title = bankData.data.description || '';
-            } else {
-                document.getElementById('palco-bank-name').textContent = '-';
+            try {
+                // Carrega informações do patch ativo
+                await loadActivePatchInfo();
+                
+                // Carrega dispositivos
+                await loadDevicesInfo();
+                
+                // Carrega canais do Chocolate MIDI
+                await loadChocolateChannels();
+                
+            } catch (error) {
+                console.error('Erro ao carregar informações do palco:', error);
             }
-
-            // Dispositivos
-            const devResp = await fetch('/api/midi/devices/status_detailed');
-            const devData = await devResp.json();
-            const list = document.getElementById('palco-devices-list');
-            list.innerHTML = '';
-            if (devData.success && Array.isArray(devData.data)) {
-                devData.data.forEach(dev => {
-                    const box = document.createElement('div');
-                    box.className = 'device-box';
+        }
+        
+        async function loadActivePatchInfo() {
+            try {
+                const response = await fetch('/api/patches/active');
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.active_patch) {
+                    activePatch = data.data.active_patch;
+                    showActivePatch(activePatch);
+                } else {
+                    hideActivePatch();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar patch ativo:', error);
+                hideActivePatch();
+            }
+        }
+        
+        function showActivePatch(patch) {
+            document.getElementById('no-active-patch').style.display = 'none';
+            document.getElementById('active-patch-content').style.display = 'block';
+            
+            document.getElementById('active-patch-name').textContent = patch.name;
+            
+            const details = [];
+            if (patch.input_device) details.push(`Entrada: ${patch.input_device}`);
+            if (patch.output_device) details.push(`Saída: ${patch.output_device}`);
+            if (patch.command_type) details.push(`Comando: ${patch.command_type.toUpperCase()}`);
+            
+            document.getElementById('active-patch-details').textContent = details.join(' • ');
+        }
+        
+        function hideActivePatch() {
+            document.getElementById('no-active-patch').style.display = 'block';
+            document.getElementById('active-patch-content').style.display = 'none';
+        }
+        
+        async function loadDevicesInfo() {
+            try {
+                const response = await fetch('/api/midi/devices/status_detailed');
+                const data = await response.json();
+                
+                const grid = document.getElementById('devices-grid');
+                grid.innerHTML = '';
+                
+                if (data.success && Array.isArray(data.data)) {
+                    data.data.forEach(dev => {
+                        const box = createDeviceBox(dev);
+                        grid.appendChild(box);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dispositivos:', error);
+            }
+        }
+        
+        function createDeviceBox(dev) {
+            const box = document.createElement('div');
+            box.className = 'device-box';
+            
+            const statusClass = dev.connected ? 'status-connected' : 'status-disconnected';
+            const statusText = dev.connected ? 'Conectado' : 'Desconectado';
+            
+            let deviceInfo = '';
+            let reconnectBtn = '';
+            
+            if (dev.type === 'zoom_g3x') {
+                // Para Zoom G3X: mostra banco e patch atual
+                const bank = dev.bank || '-';
+                const patch = dev.last_pc !== null && dev.last_pc !== undefined ? dev.last_pc : '-';
+                deviceInfo = `
+                    <div class="device-info">
+                        <div class="info-row">
+                            <span class="info-label">Banco Atual:</span>
+                            <span class="info-value">${bank}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Patch Atual:</span>
+                            <span class="info-value">${patch}</span>
+                        </div>
+                    </div>
+                `;
+            } else if (dev.type === 'chocolate') {
+                // Para Chocolate: mostra canais disponíveis
+                deviceInfo = `
+                    <div class="device-info">
+                        <div class="info-row">
+                            <span class="info-label">Canais:</span>
+                            <span class="info-value">1-16</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">${dev.connected ? 'Pronto' : 'Offline'}</span>
+                        </div>
+                    </div>
+                    <div class="chocolate-channels" id="chocolate-channels">
+                        <!-- Canais serão renderizados aqui -->
+                    </div>
+                `;
+            }
+            
+            if (!dev.connected) {
+                if (dev.type === 'zoom_g3x') {
+                    reconnectBtn = `<button class="reconnect-btn" onclick="reconnectZoomG3X()">Reconectar Zoom G3X</button>`;
+                } else if (dev.type === 'chocolate') {
+                    reconnectBtn = `<button class="reconnect-btn" onclick="reconnectChocolate()">Reconectar Chocolate</button>`;
+                }
+            }
+            
+            box.innerHTML = `
+                <div class="device-title">${dev.name}</div>
+                <div class="device-status ${statusClass}">${statusText}</div>
+                ${deviceInfo}
+                ${reconnectBtn}
+            `;
+            
+            return box;
+        }
+        
+        async function loadChocolateChannels() {
+            try {
+                // Busca patches para cada canal do Chocolate MIDI
+                const channels = [];
+                
+                for (let channel = 1; channel <= 16; channel++) {
+                    const response = await fetch(`/api/patches/by_channel/${channel}`);
+                    const data = await response.json();
                     
-                    // Determina o tipo de dispositivo para o botão de reconexão
-                    let reconnectBtn = '';
-                    if (!dev.connected) {
-                        if (dev.type === 'zoom_g3x') {
-                            reconnectBtn = `<button class="reconnect-btn" onclick="reconnectZoomG3X()">Reconectar Zoom G3X</button>`;
-                        } else if (dev.type === 'chocolate') {
-                            reconnectBtn = `<button class="reconnect-btn" onclick="reconnectChocolate()">Reconectar Chocolate</button>`;
-                        }
+                    channels.push({
+                        channel: channel,
+                        hasPatch: data.success && data.count > 0,
+                        patches: data.success ? data.data : []
+                    });
+                }
+                
+                chocolateChannels = channels;
+                renderChocolateChannels();
+                
+            } catch (error) {
+                console.error('Erro ao carregar canais do Chocolate:', error);
+            }
+        }
+        
+        function renderChocolateChannels() {
+            const container = document.getElementById('chocolate-channels');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            chocolateChannels.forEach(channelInfo => {
+                const btn = document.createElement('button');
+                btn.className = 'channel-btn';
+                if (channelInfo.hasPatch) {
+                    btn.classList.add('has-patch');
+                }
+                if (activePatch && activePatch.input_channel === channelInfo.channel) {
+                    btn.classList.add('active');
+                }
+                
+                btn.textContent = channelInfo.channel;
+                btn.onclick = () => selectChannel(channelInfo.channel, channelInfo.patches);
+                
+                container.appendChild(btn);
+            });
+        }
+        
+        async function selectChannel(channel, patches) {
+            try {
+                if (patches.length === 0) {
+                    alert(`Nenhum patch configurado para o canal ${channel}`);
+                    return;
+                }
+                
+                // Se há apenas um patch, usa ele diretamente
+                if (patches.length === 1) {
+                    await activatePatch(patches[0]);
+                } else {
+                    // Se há múltiplos patches, mostra seleção
+                    const patchNames = patches.map(p => p.name).join('\n');
+                    const selected = confirm(`Múltiplos patches encontrados para canal ${channel}:\n\n${patchNames}\n\nUsar o primeiro patch?`);
+                    
+                    if (selected) {
+                        await activatePatch(patches[0]);
                     }
-                    
-                    // Informações específicas por dispositivo
-                    let deviceInfo = '';
-                    if (dev.type === 'zoom_g3x') {
-                        // Para Zoom G3X: mostra banco e patch
-                        const bank = dev.bank || '-';
-                        const patch = dev.last_pc !== null && dev.last_pc !== undefined ? dev.last_pc : '-';
-                        deviceInfo = `<div>Banco: <span class="patch-info">${bank}</span></div><div>Patch: <span class="patch-info">${patch}</span></div>`;
-                    } else if (dev.type === 'chocolate') {
-                        // Para Chocolate: mostra apenas o banco
-                        const bank = dev.bank || '-';
-                        deviceInfo = `<div>Banco: <span class="patch-info">${bank}</span></div>`;
-                    }
-                    
-                    box.innerHTML = `
-                        <div class="device-title">${dev.name}</div>
-                        <div>Status: <b style="color:${dev.connected ? '#0f0' : '#f33'}">${dev.connected ? 'Conectado' : 'Desconectado'}</b></div>
-                        ${deviceInfo}
-                        ${reconnectBtn}
-                    `;
-                    list.appendChild(box);
+                }
+                
+            } catch (error) {
+                console.error('Erro ao selecionar canal:', error);
+                alert('Erro ao selecionar canal: ' + error.message);
+            }
+        }
+        
+        async function activatePatch(patch) {
+            try {
+                // Envia o patch para o dispositivo configurado
+                const response = await fetch('/api/midi/patch/load', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ patch_id: patch.id })
                 });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    activePatch = patch;
+                    showActivePatch(patch);
+                    renderChocolateChannels(); // Atualiza visual dos canais
+                    
+                    // Recarrega informações dos dispositivos para mostrar mudanças
+                    setTimeout(loadDevicesInfo, 1000);
+                    
+                } else {
+                    alert('Erro ao ativar patch: ' + (data.error || 'Erro desconhecido'));
+                }
+                
+            } catch (error) {
+                console.error('Erro ao ativar patch:', error);
+                alert('Erro ao ativar patch: ' + error.message);
             }
         }
         
@@ -129,9 +526,11 @@
             }
         }
 
+        // Inicialização
         window.addEventListener('DOMContentLoaded', loadPalcoInfo);
-        // Atualiza a cada 3 segundos
-        setInterval(loadPalcoInfo, 3000);
+        
+        // Atualiza a cada 5 segundos
+        setInterval(loadPalcoInfo, 5000);
     </script>
 </body>
 </html> 

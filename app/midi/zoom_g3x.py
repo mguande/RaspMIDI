@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 """
 RaspMIDI - Controlador Zoom G3X
+Baseado na documentação do zoom-explorer para MS-50G+ (device ID 6E)
 """
 
 import logging
 import mido
-from typing import Dict, Optional
+import time
+from typing import Dict, Optional, List
 
 from app.config import Config
 
 class ZoomG3XController:
-    """Controlador específico para Zoom G3X"""
+    """Controlador específico para Zoom G3X usando comandos SysEx documentados"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -18,7 +20,19 @@ class ZoomG3XController:
         self.connected = False
         self.effects = Config.ZOOM_EFFECTS
         
-        self.logger.info("Controlador Zoom G3X inicializado")
+        # Device ID para Zoom G3X (baseado na documentação MS-50G+)
+        self.device_id = 0x6E
+        
+        # Comandos SysEx documentados
+        self.sysex_commands = {
+            'identity_request': [0x7E, 0x7F, 0x06, 0x01],  # MIDI Identity Request
+            'get_patch_info': [0x52, 0x00, 0x6E, 0x06],    # Get patch info (MS-50G+ command)
+            'get_patch_name': [0x52, 0x00, 0x6E, 0x09],    # Get patch name (MS-50G+ command)
+            'get_current_patch': [0x52, 0x00, 0x6E, 0x29], # Get current patch (MS-50G+ command)
+            'get_bank_patch': [0x52, 0x00, 0x6E, 0x08],    # Get bank patch (MS-50G+ command)
+        }
+        
+        self.logger.info("Controlador Zoom G3X inicializado com comandos SysEx documentados")
     
     def connect(self, port_name: str) -> bool:
         """Conecta ao Zoom G3X"""
@@ -30,11 +44,14 @@ class ZoomG3XController:
             self.connected = True
             self.logger.info(f"Zoom G3X conectado na porta: {port_name}")
             
-            # Testa se a conexão está funcionando
+            # Testa se a conexão está funcionando com Identity Request
             try:
-                test_msg = mido.Message('program_change', channel=0, program=0)
-                self.port.send(test_msg)
-                self.logger.info("Teste de conexão bem-sucedido")
+                identity_response = self._send_identity_request()
+                if identity_response:
+                    self.logger.info(f"Identity Response: {identity_response}")
+                else:
+                    self.logger.warning("Identity Request não retornou resposta")
+                
                 return True
             except Exception as test_error:
                 self.logger.warning(f"Porta aberta mas teste falhou: {test_error}")
@@ -60,6 +77,48 @@ class ZoomG3XController:
             
             return False
     
+    def _send_identity_request(self) -> Optional[str]:
+        """Envia MIDI Identity Request e retorna a resposta"""
+        try:
+            if not self.port:
+                return None
+            
+            # MIDI Identity Request: F0 7E 7F 06 01 F7
+            sysex_data = self.sysex_commands['identity_request']
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            
+            self.logger.debug(f"Identity Request enviado: {sysex_data}")
+            
+            # Aguarda resposta
+            time.sleep(0.2)
+            
+            # Tenta ler resposta (se disponível)
+            for msg in getattr(self.port, 'iter_pending', lambda: [])():
+                if msg.type == 'sysex' and len(msg.data) >= 7:
+                    # Resposta esperada: F0 7E 00 06 02 52 6E 00 23 00 31 2E 31 30 F7
+                    if msg.data[0] == 0x7E and msg.data[2] == 0x06 and msg.data[3] == 0x02:
+                        manufacturer = msg.data[4]
+                        family_code = msg.data[5:7]
+                        model = msg.data[7:9]
+                        version = msg.data[9:]
+                        
+                        response_info = {
+                            'manufacturer': f"0x{manufacturer:02X}",
+                            'family_code': f"0x{family_code[0]:02X}{family_code[1]:02X}",
+                            'model': f"0x{model[0]:02X}{model[1]:02X}",
+                            'version': bytes(version).decode('ascii', errors='ignore')
+                        }
+                        
+                        self.logger.info(f"Identity Response: {response_info}")
+                        return str(response_info)
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar Identity Request: {str(e)}")
+            return None
+
     def disconnect(self):
         """Desconecta do Zoom G3X"""
         try:
@@ -224,8 +283,8 @@ class ZoomG3XController:
             'port': self.port.name if self.port else None
         }
     
-    def get_bank_patches(self, bank_number: int) -> Optional[list]:
-        """Tenta importar patches de um banco específico da Zoom G3X usando diferentes métodos SysEx."""
+    def get_bank_patches(self, bank_number: int) -> Optional[List[Dict]]:
+        """Tenta importar patches de um banco específico da Zoom G3X usando comandos SysEx documentados."""
         try:
             if not self.connected or self.port is None:
                 self.logger.warning("Zoom G3X não está conectado para importar patches")
@@ -243,7 +302,7 @@ class ZoomG3XController:
                 patch_name = f"Patch {patch_number}"
 
                 # Tenta diferentes métodos para ler o nome do patch
-                patch_name = self._try_read_patch_name(patch_number, bank_number)
+                patch_name = self._try_read_patch_name_documented(patch_number, bank_number)
 
                 patches.append({
                     'number': patch_number,
@@ -258,119 +317,147 @@ class ZoomG3XController:
             self.logger.error(f"Erro ao importar patches do banco {bank_number}: {str(e)}")
             return None
 
-    def _try_read_patch_name(self, patch_number: int, bank_number: int) -> str:
-        """Tenta diferentes métodos para ler o nome de um patch específico."""
+    def _try_read_patch_name_documented(self, patch_number: int, bank_number: int) -> str:
+        """Tenta ler o nome de um patch usando comandos SysEx documentados."""
         default_name = f"Patch {patch_number}"
         
         if not self.port:
             return default_name
 
-        # Método 1: Comando SysEx específico da Zoom G3X para ler patch
+        # Método 1: Comando SysEx para ler patch específico (MS-50G+ command 09)
         try:
-            # Zoom G3X SysEx: F0 52 00 6E 64 [patch_number] F7
-            sysex_data = [0x52, 0x00, 0x6E, 0x64, patch_number]
+            # F0 52 00 6E 09 00 00 <patch_number> F7
+            sysex_data = self.sysex_commands['get_patch_name'] + [0x00, 0x00, patch_number]
             sysex_msg = mido.Message('sysex', data=sysex_data)
             self.port.send(sysex_msg)
-            self.logger.debug(f"Enviado SysEx para patch {patch_number}: {sysex_data}")
+            self.logger.debug(f"Enviado SysEx get_patch_name para patch {patch_number}: {sysex_data}")
             
             # Aguarda resposta
-            import time
-            time.sleep(0.1)  # Pequena pausa para resposta
+            time.sleep(0.2)
             
-            # Tenta ler resposta (se disponível)
+            # Tenta ler resposta
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
-                if msg.type == 'sysex' and len(msg.data) > 5:
+                if msg.type == 'sysex' and len(msg.data) > 7:
                     try:
-                        name_bytes = msg.data[5:]
-                        name = bytes(name_bytes).decode('ascii', errors='ignore').strip()
-                        if name and name != '':
-                            self.logger.info(f"Patch {patch_number} nome lido via SysEx: '{name}'")
-                            return name
+                        # Resposta esperada: F0 52 00 6E 08 00 00 <patch_number> <length LSB> <length MSB> <patch_data> F7
+                        if msg.data[0:4] == [0x52, 0x00, 0x6E, 0x08]:
+                            # Extrai dados do patch
+                            patch_data = msg.data[8:]  # Remove cabeçalho
+                            # Procura por string ASCII no patch data
+                            name = self._extract_ascii_string(patch_data)
+                            if name and name != '':
+                                self.logger.info(f"Patch {patch_number} nome lido via get_patch_name: '{name}'")
+                                return name
                     except Exception as e:
-                        self.logger.debug(f"Erro ao decodificar nome do patch {patch_number}: {e}")
+                        self.logger.debug(f"Erro ao decodificar resposta get_patch_name do patch {patch_number}: {e}")
         except Exception as e:
-            self.logger.debug(f"Método 1 falhou para patch {patch_number}: {e}")
+            self.logger.debug(f"Método get_patch_name falhou para patch {patch_number}: {e}")
 
-        # Método 2: Comando SysEx alternativo da Zoom
+        # Método 2: Comando SysEx para ler patch do banco (MS-50G+ command 08)
         try:
-            # Tentativa com formato diferente: F0 52 00 6E 65 [bank] [patch_in_bank] F7
-            patch_in_bank = patch_number % 10
-            sysex_data = [0x52, 0x00, 0x6E, 0x65, bank_number, patch_in_bank]
+            # F0 52 00 6E 08 00 00 <patch_number> F7
+            sysex_data = self.sysex_commands['get_bank_patch'] + [0x00, 0x00, patch_number]
             sysex_msg = mido.Message('sysex', data=sysex_data)
             self.port.send(sysex_msg)
-            self.logger.debug(f"Enviado SysEx alternativo para patch {patch_number}: {sysex_data}")
+            self.logger.debug(f"Enviado SysEx get_bank_patch para patch {patch_number}: {sysex_data}")
             
-            import time
-            time.sleep(0.1)
+            time.sleep(0.2)
             
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
-                if msg.type == 'sysex' and len(msg.data) > 6:
+                if msg.type == 'sysex' and len(msg.data) > 7:
                     try:
-                        name_bytes = msg.data[6:]
-                        name = bytes(name_bytes).decode('ascii', errors='ignore').strip()
-                        if name and name != '':
-                            self.logger.info(f"Patch {patch_number} nome lido via SysEx alternativo: '{name}'")
-                            return name
+                        if msg.data[0:4] == [0x52, 0x00, 0x6E, 0x08]:
+                            patch_data = msg.data[8:]
+                            name = self._extract_ascii_string(patch_data)
+                            if name and name != '':
+                                self.logger.info(f"Patch {patch_number} nome lido via get_bank_patch: '{name}'")
+                                return name
                     except Exception as e:
-                        self.logger.debug(f"Erro ao decodificar nome alternativo do patch {patch_number}: {e}")
+                        self.logger.debug(f"Erro ao decodificar resposta get_bank_patch do patch {patch_number}: {e}")
         except Exception as e:
-            self.logger.debug(f"Método 2 falhou para patch {patch_number}: {e}")
+            self.logger.debug(f"Método get_bank_patch falhou para patch {patch_number}: {e}")
 
-        # Método 3: Comando de dump de patch (se suportado)
+        # Método 3: Comando SysEx para ler patch atual (MS-50G+ command 29)
         try:
-            # Comando para solicitar dump de patch: F0 52 00 6E 66 [patch_number] F7
-            sysex_data = [0x52, 0x00, 0x6E, 0x66, patch_number]
+            # F0 52 00 6E 29 F7
+            sysex_data = self.sysex_commands['get_current_patch']
             sysex_msg = mido.Message('sysex', data=sysex_data)
             self.port.send(sysex_msg)
-            self.logger.debug(f"Enviado comando dump para patch {patch_number}: {sysex_data}")
+            self.logger.debug(f"Enviado SysEx get_current_patch: {sysex_data}")
             
-            import time
-            time.sleep(0.2)  # Mais tempo para dump completo
+            time.sleep(0.2)
             
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
-                if msg.type == 'sysex' and len(msg.data) > 10:
+                if msg.type == 'sysex' and len(msg.data) > 3:
                     try:
-                        # Em um dump de patch, o nome geralmente está em uma posição específica
-                        # Vamos tentar diferentes offsets
-                        for offset in [5, 10, 15, 20]:
-                            if len(msg.data) > offset + 16:  # Nome tem até 16 caracteres
-                                name_bytes = msg.data[offset:offset+16]
-                                name = bytes(name_bytes).decode('ascii', errors='ignore').strip('\x00')
-                                if name and name != '' and len(name) > 1:
-                                    self.logger.info(f"Patch {patch_number} nome lido via dump: '{name}'")
-                                    return name
+                        # Resposta esperada: F0 52 00 6E 28 <patch_data> F7
+                        if msg.data[0:4] == [0x52, 0x00, 0x6E, 0x28]:
+                            patch_data = msg.data[4:]
+                            name = self._extract_ascii_string(patch_data)
+                            if name and name != '':
+                                self.logger.info(f"Patch atual nome lido via get_current_patch: '{name}'")
+                                return name
                     except Exception as e:
-                        self.logger.debug(f"Erro ao decodificar dump do patch {patch_number}: {e}")
+                        self.logger.debug(f"Erro ao decodificar resposta get_current_patch: {e}")
         except Exception as e:
-            self.logger.debug(f"Método 3 falhou para patch {patch_number}: {e}")
+            self.logger.debug(f"Método get_current_patch falhou: {e}")
 
-        # Método 4: Tentativa com Program Change + leitura de resposta
+        # Método 4: Program Change + tentativa de leitura
         try:
             # Envia Program Change para o patch
             pc_msg = mido.Message('program_change', channel=0, program=patch_number)
             self.port.send(pc_msg)
             self.logger.debug(f"Enviado PC {patch_number}")
             
-            import time
             time.sleep(0.1)
             
-            # Tenta ler qualquer resposta
+            # Tenta ler qualquer resposta SysEx
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
                 if msg.type == 'sysex':
                     self.logger.debug(f"Resposta SysEx recebida para PC {patch_number}: {msg.data}")
-                    # Analisa a resposta para tentar extrair o nome
-                    if len(msg.data) > 5:
+                    if len(msg.data) > 3:
                         try:
-                            name_bytes = msg.data[5:]
-                            name = bytes(name_bytes).decode('ascii', errors='ignore').strip()
+                            name = self._extract_ascii_string(msg.data)
                             if name and name != '':
                                 self.logger.info(f"Patch {patch_number} nome lido via PC: '{name}'")
                                 return name
                         except Exception as e:
                             self.logger.debug(f"Erro ao decodificar resposta PC do patch {patch_number}: {e}")
         except Exception as e:
-            self.logger.debug(f"Método 4 falhou para patch {patch_number}: {e}")
+            self.logger.debug(f"Método PC falhou para patch {patch_number}: {e}")
 
         # Se nenhum método funcionou, retorna nome padrão
         self.logger.debug(f"Nenhum método funcionou para patch {patch_number}, usando nome padrão")
-        return default_name 
+        return default_name
+
+    def _extract_ascii_string(self, data: List[int]) -> str:
+        """Extrai string ASCII válida dos dados SysEx"""
+        try:
+            # Converte para bytes e procura por strings ASCII válidas
+            byte_data = bytes(data)
+            
+            # Procura por sequências de caracteres ASCII imprimíveis
+            strings = []
+            current_string = ""
+            
+            for byte in byte_data:
+                if 32 <= byte <= 126:  # Caracteres ASCII imprimíveis
+                    current_string += chr(byte)
+                else:
+                    if len(current_string) >= 2:  # Mínimo 2 caracteres
+                        strings.append(current_string)
+                    current_string = ""
+            
+            # Adiciona última string se válida
+            if len(current_string) >= 2:
+                strings.append(current_string)
+            
+            # Retorna a string mais longa encontrada
+            if strings:
+                return max(strings, key=len).strip()
+            
+            return ""
+            
+        except Exception as e:
+            self.logger.debug(f"Erro ao extrair string ASCII: {e}")
+            return "" 

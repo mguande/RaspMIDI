@@ -111,33 +111,63 @@ class CacheManager:
             return self._cache.get('config', {})
     
     def update_patch(self, patch_data: Dict) -> bool:
-        """Atualiza um patch no cache e no banco"""
+        """Atualiza um patch no cache e no banco com preservação completa de dados e logs detalhados"""
         try:
+            self.logger.info(f"🔧 [CACHE] Iniciando atualização de patch: {patch_data.get('name', 'Sem nome')}")
+            
+            # Garante que o ID está presente
+            if 'id' not in patch_data:
+                self.logger.error("❌ [CACHE] ID do patch não encontrado nos dados")
+                return False
+            
+            patch_id = patch_data['id']
+            self.logger.info(f"🆔 [CACHE] Atualizando patch ID: {patch_id}")
+            
             with self._lock:
                 db = get_db()
                 if not db:
+                    self.logger.error("❌ [CACHE] Banco de dados não disponível")
                     return False
                 
-                # Atualiza no banco
-                patch = Patch.from_dict(patch_data)
-                success = db.update_patch(patch)
+                # Busca o patch atual no banco para garantir que existe
+                current_patch = db.get_patch(patch_id)
+                if not current_patch:
+                    self.logger.error(f"❌ [CACHE] Patch {patch_id} não encontrado no banco")
+                    return False
+                
+                self.logger.info(f"📋 [CACHE] Patch atual encontrado: {current_patch.to_dict()}")
+                
+                # Atualiza no banco usando merge (passando dados parciais)
+                from app.database.models import Patch
+                patch_obj = Patch.from_dict(patch_data)
+                success = db.update_patch(patch_obj, partial_data=patch_data)
                 
                 if success:
                     # Atualiza no cache
                     patches = self.get_patches()
                     for i, cached_patch in enumerate(patches):
-                        if cached_patch['id'] == patch.id:
-                            patches[i] = patch.to_dict()
+                        if cached_patch['id'] == patch_id:
+                            # Atualiza com os dados completos do objeto Patch
+                            updated_patch_dict = db.get_patch(patch_id).to_dict()
+                            patches[i] = updated_patch_dict
                             self._cache_timestamps['patches'] = datetime.now()
-                            break
+                            self.logger.info(f"✅ [CACHE] Patch {patch_id} atualizado no cache e banco")
+                            self.logger.debug(f"📋 [CACHE] Dados atualizados: {updated_patch_dict}")
+                            return True
                     
-                    self.logger.info(f"Patch {patch.name} atualizado")
+                    # Se não encontrou no cache, adiciona
+                    self.logger.warning(f"⚠️ [CACHE] Patch {patch_id} não encontrado no cache, adicionando")
+                    patches.append(db.get_patch(patch_id).to_dict())
+                    self._cache_timestamps['patches'] = datetime.now()
                     return True
-                
-                return False
+                else:
+                    self.logger.error(f"❌ [CACHE] Falha ao atualizar patch {patch_id} no banco")
+                    return False
                 
         except Exception as e:
-            self.logger.error(f"Erro ao atualizar patch: {str(e)}")
+            self.logger.error(f"❌ [CACHE] Erro ao atualizar patch: {str(e)}")
+            import traceback
+            self.logger.error(f"📋 [CACHE] Traceback: {traceback.format_exc()}")
             return False
     
     def add_patch(self, patch_data: Dict) -> Optional[int]:

@@ -114,33 +114,134 @@ def create_patch():
 
 @api_bp.route('/patches/<int:patch_id>', methods=['PUT'])
 def update_patch(patch_id):
-    """Atualiza um patch"""
+    """Atualiza um patch com validação completa e preservação de dados"""
     try:
+        logger.info(f"📝 Recebendo requisição para atualizar patch {patch_id}")
+        
         data = request.get_json()
+        logger.info(f"📋 Dados recebidos: {data}")
         
         if not data:
+            logger.error("❌ Dados do patch são obrigatórios")
             return jsonify({
                 'success': False,
                 'error': 'Dados do patch são obrigatórios'
             }), 400
         
-        data['id'] = patch_id
+        # Verificar se cache manager está disponível
+        if not hasattr(current_app, 'cache_manager') or current_app.cache_manager is None:
+            logger.error("❌ Cache manager não está disponível")
+            return jsonify({
+                'success': False,
+                'error': 'Cache manager não está disponível'
+            }), 500
+        
         cache_manager = current_app.cache_manager
-        success = cache_manager.update_patch(data)
+        
+        # 1. Primeiro, busca o patch atual para preservar dados existentes
+        current_patch = cache_manager.get_patch(patch_id)
+        if not current_patch:
+            logger.error(f"❌ Patch {patch_id} não encontrado")
+            return jsonify({
+                'success': False,
+                'error': 'Patch não encontrado'
+            }), 404
+        
+        logger.info(f"📋 Patch atual encontrado: {current_patch}")
+        
+        # 2. Cria um dicionário mesclado: dados atuais + novos dados
+        # Isso garante que campos não enviados pelo frontend sejam preservados
+        merged_data = current_patch.copy()
+        
+        # 3. Atualiza apenas os campos que foram enviados
+        # Campos obrigatórios que devem ser sempre validados
+        required_fields = ['name', 'input_device', 'output_device', 'command_type']
+        
+        for field in required_fields:
+            if field in data:
+                merged_data[field] = data[field]
+                logger.info(f"✅ Campo {field} atualizado: {data[field]}")
+            else:
+                logger.warning(f"⚠️ Campo obrigatório {field} não enviado, mantendo valor atual: {merged_data.get(field)}")
+        
+        # 4. Campos opcionais que podem ser atualizados
+        optional_fields = [
+            'input_channel', 'zoom_bank', 'zoom_patch', 'program', 
+            'cc', 'value', 'note', 'velocity', 'effects'
+        ]
+        
+        for field in optional_fields:
+            if field in data:
+                # Validação de tipo para campos numéricos
+                if field in ['input_channel', 'zoom_bank', 'zoom_patch', 'program', 'cc', 'value', 'note', 'velocity']:
+                    try:
+                        if data[field] is not None:
+                            merged_data[field] = int(data[field])
+                        else:
+                            merged_data[field] = None
+                    except (ValueError, TypeError):
+                        logger.warning(f"⚠️ Campo {field} com valor inválido: {data[field]}, mantendo valor atual")
+                        continue
+                else:
+                    merged_data[field] = data[field]
+                logger.info(f"✅ Campo {field} atualizado: {data[field]}")
+            else:
+                logger.info(f"ℹ️ Campo {field} não enviado, mantendo valor atual: {merged_data.get(field)}")
+        
+        # 5. Validação final dos dados mesclados
+        logger.info(f"📋 Dados mesclados finais: {merged_data}")
+        
+        # Adiciona o ID aos dados mesclados
+        merged_data['id'] = patch_id
+        
+        # Validação de campos obrigatórios
+        for field in required_fields:
+            if not merged_data.get(field):
+                logger.error(f"❌ Campo obrigatório {field} está vazio após mesclagem")
+                return jsonify({
+                    'success': False,
+                    'error': f'Campo obrigatório {field} não pode estar vazio'
+                }), 400
+        
+        # 6. Validação de tipos de dados
+        try:
+            # Testa se consegue criar um objeto Patch válido
+            from app.database.models import Patch
+            test_patch = Patch.from_dict(merged_data)
+            logger.info(f"✅ Objeto Patch criado com sucesso: {test_patch.name}")
+        except Exception as e:
+            logger.error(f"❌ Erro ao criar objeto Patch: {str(e)}")
+            return jsonify({
+                'success': False,
+                'error': f'Dados do patch inválidos: {str(e)}'
+            }), 400
+        
+        # 7. Atualiza o patch no cache e banco
+        logger.info("🔧 Iniciando atualização no cache e banco...")
+        success = cache_manager.update_patch(merged_data)
         
         if success:
+            logger.info(f"✅ Patch {patch_id} atualizado com sucesso")
+            
+            # 8. Retorna o patch atualizado para confirmação
+            updated_patch = cache_manager.get_patch(patch_id)
+            
             return jsonify({
                 'success': True,
-                'message': 'Patch atualizado com sucesso'
+                'message': 'Patch atualizado com sucesso',
+                'data': updated_patch
             })
         else:
+            logger.error(f"❌ Falha ao atualizar patch {patch_id} no cache/banco")
             return jsonify({
                 'success': False,
                 'error': 'Erro ao atualizar patch'
             }), 500
         
     except Exception as e:
-        logger.error(f"Erro ao atualizar patch {patch_id}: {str(e)}")
+        logger.error(f"❌ Erro ao atualizar patch {patch_id}: {str(e)}")
+        import traceback
+        logger.error(f"📋 Traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -341,6 +442,71 @@ def get_used_zoom_patches():
         
     except Exception as e:
         logger.error(f"Erro ao obter patches Zoom utilizados: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route('/patches/by_channel/<int:channel>', methods=['GET'])
+def get_patches_by_channel(channel):
+    """Busca patches por canal do Chocolate MIDI"""
+    try:
+        logger.info(f"🔍 Buscando patches para canal {channel}")
+        
+        cache_manager = current_app.cache_manager
+        patches = cache_manager.get_patches()
+        
+        # Filtra patches que usam o canal especificado
+        matching_patches = []
+        for patch in patches:
+            if (patch.get('input_device') == 'Chocolate MIDI' and 
+                patch.get('input_channel') == channel):
+                matching_patches.append(patch)
+        
+        logger.info(f"✅ Encontrados {len(matching_patches)} patches para canal {channel}")
+        
+        return jsonify({
+            'success': True,
+            'data': matching_patches,
+            'count': len(matching_patches),
+            'channel': channel
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao buscar patches por canal {channel}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@api_bp.route('/patches/active', methods=['GET'])
+def get_active_patch():
+    """Obtém o patch atualmente ativo no sistema"""
+    try:
+        # Busca o banco ativo
+        db_manager = current_app.db_manager
+        active_bank = db_manager.get_active_bank()
+        
+        if not active_bank:
+            return jsonify({
+                'success': True,
+                'data': None,
+                'message': 'Nenhum banco ativo'
+            })
+        
+        # Por enquanto, retorna informações do banco ativo
+        # TODO: Implementar lógica para determinar patch ativo baseado no último comando recebido
+        return jsonify({
+            'success': True,
+            'data': {
+                'bank': active_bank.to_dict(),
+                'active_patch': None,  # Será implementado quando houver histórico de comandos
+                'last_command': None
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Erro ao obter patch ativo: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)

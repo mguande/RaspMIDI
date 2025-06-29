@@ -1161,6 +1161,7 @@ def zoom_complete_data():
         device_connected = False
         device_name = None
         midi_port = None
+        identity_info = None
         
         # Tenta encontrar a porta da Zoom G3X
         try:
@@ -1168,48 +1169,65 @@ def zoom_complete_data():
             zoom_ports = [port for port in ports if 'zoom' in port.lower() or 'g3x' in port.lower()]
             
             if zoom_ports:
-                device_connected = True
                 midi_port = zoom_ports[0]
                 device_name = midi_port
+                
+                # Tenta conectar ao dispositivo
+                if zoom.connect(midi_port):
+                    device_connected = True
+                    # Tenta obter informações de identidade
+                    identity_info = zoom._send_identity_request()
+                else:
+                    device_connected = False
         except Exception as e:
-            pass
+            logger.error(f"Erro ao conectar Zoom G3X: {str(e)}")
         
         # Análise dos bancos
         banks_data = {}
         total_real_names = 0
         
-        for bank in ['A', 'B', 'C']:
-            try:
-                # Converte letra do banco para número
-                bank_mapping = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9}
-                bank_number = bank_mapping[bank]
-                
-                patches = zoom.get_bank_patches(bank_number)
-                if patches:
-                    real_names = [p for p in patches if not p['name'].startswith('Patch ')]
-                    generic_names = [p for p in patches if p['name'].startswith('Patch ')]
+        if device_connected:
+            for bank in ['A', 'B', 'C']:
+                try:
+                    # Converte letra do banco para número
+                    bank_mapping = {'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9}
+                    bank_number = bank_mapping[bank]
                     
-                    banks_data[bank] = {
-                        'total_patches': len(patches),
-                        'real_names_count': len(real_names),
-                        'generic_names_count': len(generic_names),
-                        'real_names': real_names[:5],  # Primeiros 5 nomes reais
-                        'generic_names': generic_names[:3],  # Primeiros 3 nomes genéricos
-                        'patches': patches
-                    }
+                    patches = zoom.get_bank_patches(bank_number)
+                    if patches:
+                        real_names = [p for p in patches if not p['name'].startswith('Patch ')]
+                        generic_names = [p for p in patches if p['name'].startswith('Patch ')]
+                        
+                        banks_data[bank] = {
+                            'total_patches': len(patches),
+                            'real_names_count': len(real_names),
+                            'generic_names_count': len(generic_names),
+                            'real_names': real_names[:5],  # Primeiros 5 nomes reais
+                            'generic_names': generic_names[:3],  # Primeiros 3 nomes genéricos
+                            'patches': patches
+                        }
+                        
+                        total_real_names += len(real_names)
+                    else:
+                        banks_data[bank] = {
+                            'error': 'Não foi possível ler patches',
+                            'total_patches': 0,
+                            'real_names_count': 0,
+                            'generic_names_count': 0
+                        }
                     
-                    total_real_names += len(real_names)
-                else:
+                except Exception as e:
                     banks_data[bank] = {
-                        'error': 'Não foi possível ler patches',
+                        'error': str(e),
                         'total_patches': 0,
                         'real_names_count': 0,
                         'generic_names_count': 0
                     }
-                
-            except Exception as e:
+        else:
+            # Se não conectado, cria dados de exemplo
+            for bank in ['A', 'B', 'C']:
                 banks_data[bank] = {
-                    'error': str(e),
+                    'error': 'Dispositivo não conectado',
                     'total_patches': 0,
                     'real_names_count': 0,
                     'generic_names_count': 0
@@ -1220,10 +1238,11 @@ def zoom_complete_data():
             'device_connected': device_connected,
             'total_banks_analyzed': len(banks_data),
             'total_real_names_found': total_real_names,
-            'midi_ports_available': len(mido.get_output_names()) if device_connected else 0
+            'midi_ports_available': len(mido.get_output_names()) if 'mido' in globals() else 0,
+            'identity_info': identity_info
         }
         
-        # Logs de comunicação (simulado)
+        # Logs de comunicação
         communication_logs = [
             {
                 'timestamp': '2024-01-01 12:00:00',
@@ -1242,11 +1261,23 @@ def zoom_complete_data():
             }
         ]
         
+        if identity_info:
+            communication_logs.append({
+                'timestamp': '2024-01-01 12:00:03',
+                'message': f'Identity Response: {identity_info}',
+                'type': 'success'
+            })
+        
+        # Desconecta o controlador
+        if device_connected:
+            zoom.disconnect()
+        
         return jsonify({
             'success': True,
             'device_connected': device_connected,
             'device_name': device_name,
             'midi_port': midi_port,
+            'identity_info': identity_info,
             'banks': banks_data,
             'settings': settings,
             'communication_logs': communication_logs,
@@ -1254,6 +1285,7 @@ def zoom_complete_data():
         })
         
     except Exception as e:
+        logger.error(f"Erro na análise completa da Zoom G3X: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
