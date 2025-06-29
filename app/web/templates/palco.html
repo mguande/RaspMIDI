@@ -24,27 +24,51 @@
         
         .back-btn {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #2d8cff;
+            top: 1rem;
+            right: 1rem;
+            background: #2a2e3a;
             color: #fff;
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 16px;
+            width: 3rem;
+            height: 3rem;
+            font-size: 1.5rem;
             cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            z-index: 100;
+            transition: background 0.2s;
+            z-index: 10;
         }
         
-        .back-btn:hover { 
-            background: #1a5fb4; 
-            transform: scale(1.1);
+        .back-btn:hover {
+            background: #3a3e4a;
+        }
+        
+        .palco-title {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #fff;
+        }
+        
+        .palco-title h1 {
+            font-size: 2rem;
+            margin: 0;
+            color: #fff;
+        }
+        
+        .palco-title .bank-name {
+            font-size: 1.2rem;
+            color: #ccc;
+            margin-top: 0.5rem;
+        }
+        
+        .no-patch-message {
+            background: #3a2e2e;
+            border: 1px solid #a55;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            text-align: center;
+            color: #faa;
+            font-weight: bold;
         }
         
         .active-bank-info {
@@ -335,23 +359,18 @@
     <div class="palco-container">
         <button class="back-btn" onclick="window.location.href='/'">←</button>
         
-        <div class="active-bank-info" id="active-bank-info">
-            <div class="active-bank-name" id="active-bank-name">Nenhum Banco Ativo</div>
-            <div class="active-bank-description" id="active-bank-description">Configure um banco ativo</div>
-        </div>
-        
-        <div class="active-patch-info" id="active-patch-info">
-            <div class="no-active-patch" id="no-active-patch">
-                Nenhum patch ativo - Selecione um patch no Chocolate MIDI
-            </div>
-            <div id="active-patch-content" style="display: none;">
-                <div class="active-patch-name" id="active-patch-name">-</div>
-                <div class="active-patch-details" id="active-patch-details">-</div>
-            </div>
+        <div class="palco-title">
+            <h1>RaspMIDI</h1>
+            <div class="bank-name" id="bank-name">Banco Ativo: Nenhum</div>
         </div>
         
         <div class="devices-grid" id="devices-grid">
             <!-- Dispositivos serão renderizados aqui dinamicamente -->
+        </div>
+        
+        <!-- Mensagem quando não encontrar patch -->
+        <div class="no-patch-message" id="no-patch-message" style="display: none;">
+            Não existe patch para este banco.
         </div>
     </div>
     
@@ -434,13 +453,11 @@
         }
         
         function showActiveBank(bank) {
-            document.getElementById('active-bank-name').textContent = bank.name;
-            document.getElementById('active-bank-description').textContent = bank.description || 'Banco ativo';
+            document.getElementById('bank-name').textContent = `Banco Ativo: ${bank.name}`;
         }
         
         function hideActiveBank() {
-            document.getElementById('active-bank-name').textContent = 'Nenhum Banco Ativo';
-            document.getElementById('active-bank-description').textContent = 'Configure um banco ativo';
+            document.getElementById('bank-name').textContent = 'Banco Ativo: Nenhum';
         }
         
         async function loadActivePatchInfo() {
@@ -450,7 +467,9 @@
                 
                 if (data.success && data.data && data.data.active_patch) {
                     activePatch = data.data.active_patch;
-                    showActivePatch(activePatch);
+                    
+                    // Esconde a mensagem de erro
+                    document.getElementById('no-patch-message').style.display = 'none';
                     
                     // Atualiza o visual do Chocolate se o patch ativo for do Chocolate
                     if (activePatch.input_device === 'Chocolate MIDI' && activePatch.input_channel !== undefined) {
@@ -481,35 +500,22 @@
                 } else {
                     // Não sobrescreve ou esconde o patch ativo se a resposta for vazia ou erro
                     if (activePatch) {
-                        showActivePatch(activePatch);
+                        // Esconde a mensagem de erro se há patch ativo
+                        document.getElementById('no-patch-message').style.display = 'none';
                     } // não chama hideActivePatch
                 }
             } catch (error) {
                 console.error('Erro ao carregar patch ativo:', error);
                 // Não esconde o patch ativo em caso de erro
                 if (activePatch) {
-                    showActivePatch(activePatch);
+                    // Esconde a mensagem de erro se há patch ativo
+                    document.getElementById('no-patch-message').style.display = 'none';
                 } // não chama hideActivePatch
             }
         }
         
-        function showActivePatch(patch) {
-            document.getElementById('no-active-patch').style.display = 'none';
-            document.getElementById('active-patch-content').style.display = 'block';
-            
-            document.getElementById('active-patch-name').textContent = patch.name;
-            
-            const details = [];
-            if (patch.input_device) details.push(`Entrada: ${patch.input_device}`);
-            if (patch.output_device) details.push(`Saída: ${patch.output_device}`);
-            if (patch.command_type) details.push(`Comando: ${patch.command_type.toUpperCase()}`);
-            
-            document.getElementById('active-patch-details').textContent = details.join(' • ');
-        }
-        
         function hideActivePatch() {
-            document.getElementById('no-active-patch').style.display = 'block';
-            document.getElementById('active-patch-content').style.display = 'none';
+            document.getElementById('no-patch-message').style.display = 'block';
         }
         
         async function loadDevicesInfo() {
@@ -780,11 +786,9 @@
         
         function processMidiCommand(command) {
             console.log('🎹 Comando MIDI recebido:', command);
-            alert('🎹 Comando MIDI recebido: ' + JSON.stringify(command));
             // Se for um Program Change do Chocolate, busca e ativa o patch correspondente
             if (command.type === 'program_change' && command.program !== undefined) {
                 console.log(`🎹 Program Change detectado: ${command.program}`);
-                alert(`🎹 Program Change detectado: ${command.program}`);
                 findAndActivatePatchByProgram(command.program);
             }
         }
@@ -792,7 +796,6 @@
         async function findAndActivatePatchByProgram(program) {
             try {
                 console.log(`🔍 Procurando patch com program ${program}...`);
-                alert(`🔍 Procurando patch com program ${program}...`);
                 
                 const response = await fetch('/api/patches');
                 const data = await response.json();
@@ -806,7 +809,9 @@
                     if (chocolatePatches.length > 0) {
                         const patch = chocolatePatches[0];
                         console.log(`✅ Patch encontrado: ${patch.name}`);
-                        alert(`✅ Patch encontrado: ${patch.name}`);
+                        
+                        // Esconde a mensagem de erro
+                        document.getElementById('no-patch-message').style.display = 'none';
                         
                         // PRIMEIRO: Envia comando para a Zoom G3X
                         await sendPatchToZoom(patch);
@@ -815,19 +820,20 @@
                         await activatePatch(patch);
                     } else {
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
-                        alert(`❌ Nenhum patch encontrado para program ${program}`);
+                        // Mostra a mensagem de erro
+                        document.getElementById('no-patch-message').style.display = 'block';
                     }
                 }
             } catch (error) {
                 console.error('Erro ao procurar patch por program:', error);
-                alert('Erro ao procurar patch por program: ' + error);
+                // Mostra a mensagem de erro em caso de erro
+                document.getElementById('no-patch-message').style.display = 'block';
             }
         }
         
         async function sendPatchToZoom(patch) {
             try {
                 console.log(`🎛️ Enviando patch ${patch.name} para Zoom G3X...`);
-                alert(`🎛️ Enviando patch ${patch.name} para Zoom G3X...`);
                 
                 // Verifica se o patch tem configuração da Zoom
                 if (patch.zoom_bank !== undefined && patch.zoom_patch !== undefined) {
@@ -835,7 +841,6 @@
                     const patchNumber = patch.zoom_patch;
                     
                     console.log(`🎛️ Zoom Bank: ${bank}, Patch: ${patchNumber}`);
-                    alert(`🎛️ Zoom Bank: ${bank}, Patch: ${patchNumber}`);
                     
                     // Envia comando Program Change para a Zoom
                     const response = await fetch('/api/midi/pc', {
@@ -853,26 +858,21 @@
                     
                     if (data.success) {
                         console.log(`✅ Comando enviado para Zoom G3X: Bank ${bank}, Patch ${patchNumber}`);
-                        alert(`✅ Comando enviado para Zoom G3X: Bank ${bank}, Patch ${patchNumber}`);
                     } else {
                         console.error('❌ Erro ao enviar comando para Zoom G3X:', data.error);
-                        alert('❌ Erro ao enviar comando para Zoom G3X: ' + data.error);
                     }
                 } else {
                     console.log('⚠️ Patch não tem configuração da Zoom G3X');
-                    alert('⚠️ Patch não tem configuração da Zoom G3X');
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao enviar patch para Zoom G3X:', error);
-                alert('❌ Erro ao enviar patch para Zoom G3X: ' + error);
             }
         }
         
         async function activatePatch(patch) {
             try {
                 console.log(`🎹 Ativando patch: ${patch.name}`);
-                alert(`🎹 Ativando patch: ${patch.name}`);
                 
                 // Ativa o patch via API
                 const response = await fetch('/api/midi/patch/load', {
@@ -887,9 +887,7 @@
                 
                 if (data.success) {
                     console.log('✅ Patch ativado no sistema');
-                    alert('✅ Patch ativado no sistema');
                     activePatch = patch;
-                    showActivePatch(patch);
                     
                     // Atualiza o visual do Chocolate se o patch for do Chocolate
                     if (patch.input_device === 'Chocolate MIDI' && patch.input_channel !== undefined) {
@@ -919,11 +917,9 @@
                     }
                 } else {
                     console.error('❌ Erro ao ativar patch:', data.error);
-                    alert('❌ Erro ao ativar patch: ' + data.error);
                 }
             } catch (error) {
                 console.error('❌ Erro ao ativar patch:', error);
-                alert('❌ Erro ao ativar patch: ' + error);
             }
         }
         
@@ -940,13 +936,13 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('Zoom G3X reconectado com sucesso!');
+                    console.log('Zoom G3X reconectado com sucesso!');
                     loadPalcoInfo(); // Recarrega as informações
                 } else {
-                    alert('Erro ao reconectar Zoom G3X: ' + (data.message || 'Erro desconhecido'));
+                    console.error('Erro ao reconectar Zoom G3X:', data.message || 'Erro desconhecido');
                 }
             } catch (error) {
-                alert('Erro ao reconectar Zoom G3X: ' + error.message);
+                console.error('Erro ao reconectar Zoom G3X:', error.message);
             }
         }
         
@@ -963,13 +959,13 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('Chocolate reconectado com sucesso!');
+                    console.log('Chocolate reconectado com sucesso!');
                     loadPalcoInfo(); // Recarrega as informações
                 } else {
-                    alert('Erro ao reconectar Chocolate: ' + (data.message || 'Erro desconhecido'));
+                    console.error('Erro ao reconectar Chocolate:', data.message || 'Erro desconhecido');
                 }
             } catch (error) {
-                alert('Erro ao reconectar Chocolate: ' + error.message);
+                console.error('Erro ao reconectar Chocolate:', error.message);
             }
         }
         
@@ -998,12 +994,10 @@
                     }
                 } else {
                     console.error('❌ Erro ao conectar Chocolate MIDI:', data.error);
-                    alert('Erro ao conectar Chocolate MIDI: ' + data.error);
                 }
                 
             } catch (error) {
                 console.error('❌ Erro ao conectar Chocolate MIDI:', error);
-                alert('Erro ao conectar Chocolate MIDI: ' + error.message);
             }
         }
 
