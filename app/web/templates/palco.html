@@ -320,26 +320,30 @@
         let activeBank = null;
         let midiMonitoringActive = false;
         let lastActiveBankId = null; // Para controlar mudanças no banco ativo
+        let isInitialLoad = true; // Para controlar o carregamento inicial
         
         async function loadPalcoInfo() {
             try {
                 // Carrega informações do banco ativo
                 const bankChanged = await loadActiveBankInfo();
                 
-                // Só atualiza o resto se o banco ativo mudou
-                if (bankChanged) {
-                    console.log('🔄 Banco ativo mudou, recarregando informações...');
+                // Na primeira execução ou se o banco ativo mudou, carrega tudo
+                if (isInitialLoad || bankChanged) {
+                    console.log(isInitialLoad ? '🚀 Carregamento inicial...' : '🔄 Banco ativo mudou, recarregando informações...');
                     
                     // Carrega informações do patch ativo
                     await loadActivePatchInfo();
                     
-                    // Carrega dispositivos
+                    // Carrega dispositivos (sempre na primeira execução)
                     await loadDevicesInfo();
                     
                     // Inicia monitoramento MIDI se não estiver ativo
                     if (!midiMonitoringActive) {
                         await startMidiMonitoring();
                     }
+                    
+                    // Marca que não é mais o carregamento inicial
+                    isInitialLoad = false;
                 } else {
                     // Se o banco não mudou, só atualiza o patch ativo (pode ter mudado por MIDI)
                     await loadActivePatchInfo();
