@@ -1147,7 +1147,7 @@ def test_zoom_patch_names(bank_letter):
             'error': str(e)
         }), 500
 
-@midi_bp.route('/api/midi/zoom/complete-data', methods=['GET'])
+@midi_bp.route('/zoom/complete-data', methods=['GET'])
 def zoom_complete_data():
     """Análise completa de todos os dados da Zoom G3X"""
     try:
