@@ -230,6 +230,16 @@
                 Informações do Sistema
             </button>
             
+            <button class="verificacao-btn zoom-patches" onclick="testZoomPatchNames()">
+                <i class="fas fa-search"></i>
+                Testar Nomes dos Patches
+            </button>
+            
+            <button class="verificacao-btn device-status" onclick="testZoomCompleteData()">
+                <i class="fas fa-database"></i>
+                Análise Completa Zoom G3X
+            </button>
+            
             <button class="btn btn-primary" onclick="testZoomPatchNames()">
                 <i class="fas fa-music"></i>
                 Testar Nomes dos Patches Zoom G3X
@@ -472,32 +482,32 @@
         }
         
         function listZoomPatches() {
-            addOutput('$ Testando listagem de patches da Zoom G3X...', 'command');
+            addLogEntry('$ Testando listagem de patches da Zoom G3X...', 'info');
             
             fetch('/api/midi/zoom/patches/A')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        addOutput('✅ Patches do banco A carregados com sucesso!', 'success');
-                        addOutput('📋 Lista de patches:', 'info');
+                        addLogEntry('✅ Patches do banco A carregados com sucesso!', 'success');
+                        addLogEntry('📋 Lista de patches:', 'info');
                         
                         data.data.forEach(patch => {
-                            addOutput(`   Patch ${patch.number}: "${patch.name}"`, 'info');
+                            addLogEntry(`   Patch ${patch.number}: "${patch.name}"`, 'info');
                         });
                         
-                        addOutput(`📊 Total: ${data.data.length} patches encontrados`, 'info');
+                        addLogEntry(`📊 Total: ${data.data.length} patches encontrados`, 'info');
                     } else {
-                        addOutput(`❌ Erro ao carregar patches: ${data.error}`, 'error');
+                        addLogEntry(`❌ Erro ao carregar patches: ${data.error}`, 'error');
                     }
                 })
                 .catch(error => {
-                    addOutput(`❌ Erro na requisição: ${error.message}`, 'error');
+                    addLogEntry(`❌ Erro na requisição: ${error.message}`, 'error');
                 });
         }
 
         function testZoomPatchNames() {
-            addOutput('$ Testando leitura de nomes de patches da Zoom G3X...', 'command');
-            addOutput('🔍 Iniciando teste detalhado com diferentes métodos SysEx...', 'info');
+            addLogEntry('$ Testando leitura de nomes de patches da Zoom G3X...', 'info');
+            addLogEntry('🔍 Iniciando teste detalhado com diferentes métodos SysEx...', 'info');
             
             // Testa diferentes bancos para ver se conseguimos ler os nomes
             const banks = ['A', 'B', 'C'];
@@ -505,7 +515,7 @@
             
             banks.forEach(bank => {
                 setTimeout(() => {
-                    addOutput(`📂 Testando banco ${bank} com análise detalhada...`, 'info');
+                    addLogEntry(`📂 Testando banco ${bank} com análise detalhada...`, 'info');
                     
                     fetch(`/api/midi/zoom/test-patch-names/${bank}`)
                         .then(response => response.json())
@@ -513,57 +523,129 @@
                             testedBanks++;
                             
                             if (data.success) {
-                                addOutput(`✅ Banco ${bank} analisado com sucesso!`, 'success');
-                                addOutput(`📊 Estatísticas do banco ${bank}:`, 'info');
-                                addOutput(`   • Total de patches: ${data.total_patches}`, 'info');
-                                addOutput(`   • Nomes reais: ${data.real_names_count}`, 'info');
-                                addOutput(`   • Nomes genéricos: ${data.generic_names_count}`, 'info');
+                                addLogEntry(`✅ Banco ${bank} analisado com sucesso!`, 'success');
+                                addLogEntry(`📊 Estatísticas do banco ${bank}:`, 'info');
+                                addLogEntry(`   • Total de patches: ${data.total_patches}`, 'info');
+                                addLogEntry(`   • Nomes reais: ${data.real_names_count}`, 'info');
+                                addLogEntry(`   • Nomes genéricos: ${data.generic_names_count}`, 'info');
                                 
                                 if (data.real_names_count > 0) {
-                                    addOutput(`🎉 SUCESSO! Encontrados ${data.real_names_count} nomes reais!`, 'success');
-                                    addOutput(`📋 Exemplos de nomes reais:`, 'info');
+                                    addLogEntry(`🎉 SUCESSO! Encontrados ${data.real_names_count} nomes reais!`, 'success');
+                                    addLogEntry(`📋 Exemplos de nomes reais:`, 'info');
                                     data.real_names.slice(0, 5).forEach(patch => {
-                                        addOutput(`   ✅ Patch ${patch.number}: "${patch.name}"`, 'success');
+                                        addLogEntry(`   ✅ Patch ${patch.number}: "${patch.name}"`, 'success');
                                     });
                                 } else {
-                                    addOutput(`⚠️ Apenas nomes genéricos encontrados no banco ${bank}`, 'warning');
-                                    addOutput(`📋 Exemplos de nomes genéricos:`, 'info');
+                                    addLogEntry(`⚠️ Apenas nomes genéricos encontrados no banco ${bank}`, 'warning');
+                                    addLogEntry(`📋 Exemplos de nomes genéricos:`, 'info');
                                     data.generic_names.slice(0, 3).forEach(patch => {
-                                        addOutput(`   ❌ Patch ${patch.number}: "${patch.name}"`, 'warning');
+                                        addLogEntry(`   ❌ Patch ${patch.number}: "${patch.name}"`, 'warning');
                                     });
                                 }
                                 
                                 // Mostra todos os patches se houver poucos
                                 if (data.total_patches <= 10) {
-                                    addOutput(`📋 Lista completa do banco ${bank}:`, 'info');
+                                    addLogEntry(`📋 Lista completa do banco ${bank}:`, 'info');
                                     data.patches.forEach(patch => {
                                         const status = patch.name.startsWith('Patch ') ? '❌' : '✅';
-                                        addOutput(`   ${status} Patch ${patch.number}: "${patch.name}"`, 'info');
+                                        addLogEntry(`   ${status} Patch ${patch.number}: "${patch.name}"`, 'info');
                                     });
                                 }
                             } else {
-                                addOutput(`❌ Erro no banco ${bank}: ${data.error}`, 'error');
+                                addLogEntry(`❌ Erro no banco ${bank}: ${data.error}`, 'error');
                             }
                             
                             if (testedBanks === banks.length) {
-                                addOutput('🏁 Teste detalhado de nomes de patches concluído!', 'info');
-                                addOutput('💡 Dica: Se apenas nomes genéricos aparecem, pode ser necessário:', 'info');
-                                addOutput('   • Verificar se a Zoom G3X está conectada via USB', 'info');
-                                addOutput('   • Verificar se a alimentação externa está conectada', 'info');
-                                addOutput('   • Verificar se os drivers estão instalados', 'info');
-                                addOutput('   • Tentar reiniciar a Zoom G3X', 'info');
+                                addLogEntry('🏁 Teste detalhado de nomes de patches concluído!', 'info');
+                                addLogEntry('💡 Dica: Se apenas nomes genéricos aparecem, pode ser necessário:', 'info');
+                                addLogEntry('   • Verificar se a Zoom G3X está conectada via USB', 'info');
+                                addLogEntry('   • Verificar se a alimentação externa está conectada', 'info');
+                                addLogEntry('   • Verificar se os drivers estão instalados', 'info');
+                                addLogEntry('   • Tentar reiniciar a Zoom G3X', 'info');
                             }
                         })
                         .catch(error => {
                             testedBanks++;
-                            addOutput(`❌ Erro ao testar banco ${bank}: ${error.message}`, 'error');
+                            addLogEntry(`❌ Erro ao testar banco ${bank}: ${error.message}`, 'error');
                             
                             if (testedBanks === banks.length) {
-                                addOutput('🏁 Teste detalhado de nomes de patches concluído!', 'info');
+                                addLogEntry('🏁 Teste detalhado de nomes de patches concluído!', 'info');
                             }
                         });
                 }, testedBanks * 1500); // Delay maior entre testes
             });
+        }
+        
+        function testZoomCompleteData() {
+            addLogEntry('$ Testando leitura completa de dados da Zoom G3X...', 'info');
+            addLogEntry('🔍 Iniciando análise completa de todos os dados disponíveis...', 'info');
+            
+            fetch('/api/midi/zoom/complete-data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addLogEntry('✅ Análise completa realizada com sucesso!', 'success');
+                        addLogEntry('📊 Resumo dos dados encontrados:', 'info');
+                        
+                        // Informações gerais
+                        addLogEntry(`📋 Informações Gerais:`, 'info');
+                        addLogEntry(`   • Dispositivo conectado: ${data.device_connected ? 'Sim' : 'Não'}`, data.device_connected ? 'success' : 'error');
+                        addLogEntry(`   • Nome do dispositivo: ${data.device_name || 'N/A'}`, 'info');
+                        addLogEntry(`   • Porta MIDI: ${data.midi_port || 'N/A'}`, 'info');
+                        
+                        // Bancos de patches
+                        if (data.banks) {
+                            addLogEntry(`📂 Bancos de Patches:`, 'info');
+                            Object.keys(data.banks).forEach(bank => {
+                                const bankData = data.banks[bank];
+                                addLogEntry(`   • Banco ${bank}: ${bankData.total_patches} patches`, 'info');
+                                addLogEntry(`     - Nomes reais: ${bankData.real_names_count}`, bankData.real_names_count > 0 ? 'success' : 'warning');
+                                addLogEntry(`     - Nomes genéricos: ${bankData.generic_names_count}`, 'info');
+                                
+                                // Mostra alguns exemplos
+                                if (bankData.real_names && bankData.real_names.length > 0) {
+                                    addLogEntry(`     📋 Exemplos de nomes reais:`, 'success');
+                                    bankData.real_names.slice(0, 3).forEach(patch => {
+                                        addLogEntry(`       ✅ Patch ${patch.number}: "${patch.name}"`, 'success');
+                                    });
+                                }
+                            });
+                        }
+                        
+                        // Configurações
+                        if (data.settings) {
+                            addLogEntry(`⚙️ Configurações:`, 'info');
+                            Object.keys(data.settings).forEach(key => {
+                                addLogEntry(`   • ${key}: ${data.settings[key]}`, 'info');
+                            });
+                        }
+                        
+                        // Logs de comunicação
+                        if (data.communication_logs && data.communication_logs.length > 0) {
+                            addLogEntry(`📡 Logs de Comunicação:`, 'info');
+                            data.communication_logs.slice(-5).forEach(log => {
+                                addLogEntry(`   • ${log.timestamp}: ${log.message}`, log.type === 'success' ? 'success' : log.type === 'error' ? 'error' : 'info');
+                            });
+                        }
+                        
+                        // Recomendações
+                        addLogEntry(`💡 Recomendações:`, 'info');
+                        if (!data.device_connected) {
+                            addLogEntry(`   ❌ Dispositivo não conectado - Verifique a conexão USB`, 'error');
+                        } else if (data.total_real_names === 0) {
+                            addLogEntry(`   ⚠️ Nenhum nome real encontrado - Pode ser problema de comunicação`, 'warning');
+                            addLogEntry(`   💡 Tente: Reiniciar a Zoom G3X, verificar alimentação externa`, 'info');
+                        } else {
+                            addLogEntry(`   ✅ Sistema funcionando corretamente!`, 'success');
+                        }
+                        
+                    } else {
+                        addLogEntry(`❌ Erro na análise completa: ${data.error}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLogEntry(`❌ Erro na requisição: ${error.message}`, 'error');
+                });
         }
         
         // Inicialização

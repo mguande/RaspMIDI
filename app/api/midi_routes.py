@@ -1145,4 +1145,104 @@ def test_zoom_patch_names(bank_letter):
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500 
+        }), 500
+
+@midi_bp.route('/api/midi/zoom/complete-data', methods=['GET'])
+def zoom_complete_data():
+    """Análise completa de todos os dados da Zoom G3X"""
+    try:
+        from app.midi.zoom_g3x import ZoomG3X
+        import mido
+        
+        # Inicializa o controlador da Zoom
+        zoom = ZoomG3X()
+        
+        # Informações gerais
+        device_connected = False
+        device_name = None
+        midi_port = None
+        
+        # Tenta encontrar a porta da Zoom G3X
+        try:
+            ports = mido.get_output_names()
+            zoom_ports = [port for port in ports if 'zoom' in port.lower() or 'g3x' in port.lower()]
+            
+            if zoom_ports:
+                device_connected = True
+                midi_port = zoom_ports[0]
+                device_name = midi_port
+        except Exception as e:
+            pass
+        
+        # Análise dos bancos
+        banks_data = {}
+        total_real_names = 0
+        
+        for bank in ['A', 'B', 'C']:
+            try:
+                patches = zoom.get_patches(bank)
+                real_names = [p for p in patches if not p['name'].startswith('Patch ')]
+                generic_names = [p for p in patches if p['name'].startswith('Patch ')]
+                
+                banks_data[bank] = {
+                    'total_patches': len(patches),
+                    'real_names_count': len(real_names),
+                    'generic_names_count': len(generic_names),
+                    'real_names': real_names[:5],  # Primeiros 5 nomes reais
+                    'generic_names': generic_names[:3],  # Primeiros 3 nomes genéricos
+                    'patches': patches
+                }
+                
+                total_real_names += len(real_names)
+                
+            except Exception as e:
+                banks_data[bank] = {
+                    'error': str(e),
+                    'total_patches': 0,
+                    'real_names_count': 0,
+                    'generic_names_count': 0
+                }
+        
+        # Configurações detectadas
+        settings = {
+            'device_connected': device_connected,
+            'total_banks_analyzed': len(banks_data),
+            'total_real_names_found': total_real_names,
+            'midi_ports_available': len(mido.get_output_names()) if device_connected else 0
+        }
+        
+        # Logs de comunicação (simulado)
+        communication_logs = [
+            {
+                'timestamp': '2024-01-01 12:00:00',
+                'message': f'Dispositivo conectado: {device_connected}',
+                'type': 'success' if device_connected else 'error'
+            },
+            {
+                'timestamp': '2024-01-01 12:00:01',
+                'message': f'Porta MIDI: {midi_port or "N/A"}',
+                'type': 'info'
+            },
+            {
+                'timestamp': '2024-01-01 12:00:02',
+                'message': f'Total de nomes reais encontrados: {total_real_names}',
+                'type': 'success' if total_real_names > 0 else 'warning'
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'device_connected': device_connected,
+            'device_name': device_name,
+            'midi_port': midi_port,
+            'banks': banks_data,
+            'settings': settings,
+            'communication_logs': communication_logs,
+            'total_real_names': total_real_names
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }) 
