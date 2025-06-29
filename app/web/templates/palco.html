@@ -119,33 +119,35 @@
             border-color: #ffb300;
         }
         
+        .device-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.8rem;
+            gap: 0.5rem;
+        }
+        
         .device-title { 
             font-size: 1.1rem; 
             font-weight: bold; 
-            margin-bottom: 0.8rem;
             color: #ffb300;
-            text-align: center;
         }
         
-        .device-status {
-            text-align: center;
-            margin-bottom: 0.8rem;
-            padding: 0.3rem;
-            border-radius: 0.3rem;
-            font-weight: bold;
-            font-size: 0.8rem;
+        .connection-icon {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid;
         }
         
-        .status-connected {
-            background: rgba(0, 255, 0, 0.2);
-            color: #0f0;
-            border: 1px solid #0f0;
+        .connection-icon.connected {
+            background: #0f0;
+            border-color: #0f0;
         }
         
-        .status-disconnected {
-            background: rgba(255, 0, 0, 0.2);
-            color: #f33;
-            border: 1px solid #f33;
+        .connection-icon.disconnected {
+            background: #f33;
+            border-color: #f33;
         }
         
         .device-info {
@@ -194,26 +196,44 @@
             cursor: not-allowed; 
         }
         
-        .chocolate-status {
-            text-align: center;
-            padding: 0.5rem;
-            background: rgba(255, 179, 0, 0.1);
-            border: 1px solid #ffb300;
+        .chocolate-patches {
+            margin-top: 0.8rem;
+        }
+        
+        .patch-item {
+            background: #333;
+            border: 1px solid #555;
             border-radius: 0.3rem;
-            margin-top: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 0.3rem;
             font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
         }
         
-        .chocolate-status.ready {
-            background: rgba(0, 255, 0, 0.1);
-            border-color: #0f0;
-            color: #0f0;
-        }
-        
-        .chocolate-status.waiting {
-            background: rgba(255, 179, 0, 0.1);
+        .patch-item:hover {
+            background: #555;
             border-color: #ffb300;
-            color: #ffb300;
+        }
+        
+        .patch-item.active {
+            background: #ffb300;
+            color: #000;
+            border-color: #ffb300;
+        }
+        
+        .patch-name {
+            font-weight: bold;
+            margin-bottom: 0.2rem;
+        }
+        
+        .patch-details {
+            font-size: 0.7rem;
+            color: #ccc;
+        }
+        
+        .patch-item.active .patch-details {
+            color: #333;
         }
     </style>
 </head>
@@ -228,7 +248,7 @@
         
         <div class="active-patch-info" id="active-patch-info">
             <div class="no-active-patch" id="no-active-patch">
-                Nenhum patch ativo - Selecione um canal no Chocolate MIDI
+                Nenhum patch ativo - Selecione um patch no Chocolate MIDI
             </div>
             <div id="active-patch-content" style="display: none;">
                 <div class="active-patch-name" id="active-patch-name">-</div>
@@ -244,6 +264,7 @@
     <script>
         let activePatch = null;
         let activeBank = null;
+        let chocolatePatches = [];
         
         async function loadPalcoInfo() {
             try {
@@ -255,6 +276,9 @@
                 
                 // Carrega dispositivos
                 await loadDevicesInfo();
+                
+                // Carrega patches do Chocolate MIDI
+                await loadChocolatePatches();
                 
             } catch (error) {
                 console.error('Erro ao carregar informações do palco:', error);
@@ -347,8 +371,7 @@
             const box = document.createElement('div');
             box.className = 'device-box';
             
-            const statusClass = dev.connected ? 'status-connected' : 'status-disconnected';
-            const statusText = dev.connected ? 'Conectado' : 'Desconectado';
+            const connectionClass = dev.connected ? 'connected' : 'disconnected';
             
             let deviceInfo = '';
             let reconnectBtn = '';
@@ -370,19 +393,16 @@
                     </div>
                 `;
             } else if (dev.type === 'chocolate') {
-                // Para Chocolate: mostra status simplificado
-                const statusClass = dev.connected ? 'ready' : 'waiting';
-                const statusText = dev.connected ? 'Pronto para seleção' : 'Aguardando conexão';
-                
+                // Para Chocolate: mostra patches disponíveis
                 deviceInfo = `
                     <div class="device-info">
                         <div class="info-row">
-                            <span class="info-label">Canais:</span>
-                            <span class="info-value">1-16</span>
+                            <span class="info-label">Patches:</span>
+                            <span class="info-value">${chocolatePatches.length}</span>
                         </div>
-                        <div class="chocolate-status ${statusClass}">
-                            ${statusText}
-                        </div>
+                    </div>
+                    <div class="chocolate-patches" id="chocolate-patches">
+                        <!-- Patches serão renderizados aqui -->
                     </div>
                 `;
             }
@@ -396,13 +416,97 @@
             }
             
             box.innerHTML = `
-                <div class="device-title">${dev.name}</div>
-                <div class="device-status ${statusClass}">${statusText}</div>
+                <div class="device-header">
+                    <div class="connection-icon ${connectionClass}"></div>
+                    <div class="device-title">${dev.name}</div>
+                </div>
                 ${deviceInfo}
                 ${reconnectBtn}
             `;
             
             return box;
+        }
+        
+        async function loadChocolatePatches() {
+            try {
+                // Busca todos os patches do Chocolate MIDI
+                const response = await fetch('/api/patches');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    chocolatePatches = data.data.filter(patch => 
+                        patch.input_device === 'Chocolate MIDI'
+                    );
+                    renderChocolatePatches();
+                }
+            } catch (error) {
+                console.error('Erro ao carregar patches do Chocolate:', error);
+            }
+        }
+        
+        function renderChocolatePatches() {
+            const container = document.getElementById('chocolate-patches');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            chocolatePatches.forEach(patch => {
+                const patchElement = document.createElement('div');
+                patchElement.className = 'patch-item';
+                
+                if (activePatch && activePatch.id === patch.id) {
+                    patchElement.classList.add('active');
+                }
+                
+                const details = [];
+                if (patch.input_channel) details.push(`Canal ${patch.input_channel}`);
+                if (patch.command_type) details.push(patch.command_type.toUpperCase());
+                if (patch.program !== null) details.push(`Prog ${patch.program}`);
+                
+                patchElement.innerHTML = `
+                    <div class="patch-name">${patch.name}</div>
+                    <div class="patch-details">${details.join(' • ')}</div>
+                `;
+                
+                patchElement.onclick = () => selectChocolatePatch(patch);
+                
+                container.appendChild(patchElement);
+            });
+        }
+        
+        async function selectChocolatePatch(patch) {
+            try {
+                console.log(`🎹 Selecionando patch do Chocolate: ${patch.name}`);
+                
+                // Ativa o patch via API
+                const response = await fetch('/api/midi/patch/load', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ patch_id: patch.id })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    activePatch = patch;
+                    showActivePatch(patch);
+                    renderChocolatePatches(); // Atualiza visual dos patches
+                    
+                    // Recarrega informações dos dispositivos para mostrar mudanças
+                    setTimeout(loadDevicesInfo, 1000);
+                    
+                    console.log(`✅ Patch ${patch.name} ativado com sucesso`);
+                } else {
+                    console.error('❌ Erro ao ativar patch:', data.error);
+                    alert('Erro ao ativar patch: ' + (data.error || 'Erro desconhecido'));
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao selecionar patch:', error);
+                alert('Erro ao selecionar patch: ' + error.message);
+            }
         }
         
         // Função para reconectar Zoom G3X
@@ -454,8 +558,8 @@
         // Inicialização
         window.addEventListener('DOMContentLoaded', loadPalcoInfo);
         
-        // Atualiza a cada 3 segundos
-        setInterval(loadPalcoInfo, 3000);
+        // Atualiza a cada 2 segundos para responder rapidamente
+        setInterval(loadPalcoInfo, 2000);
     </script>
 </body>
 </html> 
