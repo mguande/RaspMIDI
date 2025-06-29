@@ -483,28 +483,46 @@ def get_patches_by_channel(channel):
 def get_active_patch():
     """Obtém o patch atualmente ativo no sistema"""
     try:
-        # Busca o banco ativo
         db_manager = current_app.db_manager
         active_bank = db_manager.get_active_bank()
-        
         if not active_bank:
             return jsonify({
                 'success': True,
-                'data': None,
+                'data': {
+                    'bank': None,
+                    'active_patch': None,
+                    'last_command': None
+                },
                 'message': 'Nenhum banco ativo'
             })
-        
-        # Por enquanto, retorna informações do banco ativo
-        # TODO: Implementar lógica para determinar patch ativo baseado no último comando recebido
+        midi_controller = current_app.midi_controller
+        last_command = None
+        active_patch = None
+        received_commands = midi_controller.get_received_commands()
+        if received_commands:
+            for command in reversed(received_commands):
+                if command.get('type') == 'program_change' and command.get('program') is not None:
+                    last_command = command
+                    break
+        if last_command and last_command.get('program') is not None:
+            cache_manager = current_app.cache_manager
+            patches = cache_manager.get_patches()
+            for patch in patches:
+                if (patch.get('input_device') == 'Chocolate MIDI' and 
+                    patch.get('program') == last_command['program']):
+                    active_patch = patch
+                    break
+        # Se não encontrou via comando MIDI, usa o último patch ativado via API
+        if not active_patch and hasattr(midi_controller, '_last_patch_activated') and midi_controller._last_patch_activated:
+            active_patch = midi_controller._last_patch_activated
         return jsonify({
             'success': True,
             'data': {
-                'bank': active_bank.to_dict(),
-                'active_patch': None,  # Será implementado quando houver histórico de comandos
-                'last_command': None
+                'bank': active_bank.to_dict() if active_bank else None,
+                'active_patch': active_patch,
+                'last_command': last_command
             }
         })
-        
     except Exception as e:
         logger.error(f"❌ Erro ao obter patch ativo: {str(e)}")
         return jsonify({

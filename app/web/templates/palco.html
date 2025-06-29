@@ -196,44 +196,20 @@
             cursor: not-allowed; 
         }
         
-        .chocolate-patches {
-            margin-top: 0.8rem;
-        }
-        
-        .patch-item {
-            background: #333;
-            border: 1px solid #555;
-            border-radius: 0.3rem;
+        .midi-status {
+            background: #2a2e3a;
+            border-radius: 0.5rem;
             padding: 0.5rem;
-            margin-bottom: 0.3rem;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .patch-item:hover {
-            background: #555;
-            border-color: #ffb300;
-        }
-        
-        .patch-item.active {
-            background: #ffb300;
-            color: #000;
-            border-color: #ffb300;
-        }
-        
-        .patch-name {
-            font-weight: bold;
-            margin-bottom: 0.2rem;
-        }
-        
-        .patch-details {
+            margin-top: 0.5rem;
             font-size: 0.7rem;
+            text-align: center;
             color: #ccc;
         }
         
-        .patch-item.active .patch-details {
-            color: #333;
+        .midi-status.active {
+            background: #1a3a1a;
+            color: #0f0;
+            border: 1px solid #0f0;
         }
     </style>
 </head>
@@ -264,7 +240,7 @@
     <script>
         let activePatch = null;
         let activeBank = null;
-        let chocolatePatches = [];
+        let midiMonitoringActive = false;
         
         async function loadPalcoInfo() {
             try {
@@ -277,8 +253,10 @@
                 // Carrega dispositivos
                 await loadDevicesInfo();
                 
-                // Carrega patches do Chocolate MIDI
-                await loadChocolatePatches();
+                // Inicia monitoramento MIDI se não estiver ativo
+                if (!midiMonitoringActive) {
+                    await startMidiMonitoring();
+                }
                 
             } catch (error) {
                 console.error('Erro ao carregar informações do palco:', error);
@@ -375,6 +353,7 @@
             
             let deviceInfo = '';
             let reconnectBtn = '';
+            let midiStatus = '';
             
             if (dev.type === 'zoom_g3x') {
                 // Para Zoom G3X: mostra banco e patch atual
@@ -393,16 +372,26 @@
                     </div>
                 `;
             } else if (dev.type === 'chocolate') {
-                // Para Chocolate: mostra patches disponíveis
+                // Para Chocolate: apenas informativo (status + patch ativo)
+                const currentPatch = activePatch && activePatch.input_device === 'Chocolate MIDI' ? activePatch.name : 'Nenhum';
                 deviceInfo = `
                     <div class="device-info">
                         <div class="info-row">
-                            <span class="info-label">Patches:</span>
-                            <span class="info-value">${chocolatePatches.length}</span>
+                            <span class="info-label">Patch Ativo:</span>
+                            <span class="info-value">${currentPatch}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">${dev.connected ? 'Conectado' : 'Desconectado'}</span>
                         </div>
                     </div>
-                    <div class="chocolate-patches" id="chocolate-patches">
-                        <!-- Patches serão renderizados aqui -->
+                `;
+                
+                // Status do monitoramento MIDI
+                const midiClass = midiMonitoringActive ? 'active' : '';
+                midiStatus = `
+                    <div class="midi-status ${midiClass}">
+                        MIDI Monitor: ${midiMonitoringActive ? 'Ativo' : 'Inativo'}
                     </div>
                 `;
             }
@@ -421,62 +410,104 @@
                     <div class="device-title">${dev.name}</div>
                 </div>
                 ${deviceInfo}
+                ${midiStatus}
                 ${reconnectBtn}
             `;
             
             return box;
         }
         
-        async function loadChocolatePatches() {
+        async function startMidiMonitoring() {
             try {
-                // Busca todos os patches do Chocolate MIDI
+                console.log('🎹 Iniciando monitoramento MIDI...');
+                
+                const response = await fetch('/api/midi/monitor/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        device: 'Chocolate MIDI In'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    midiMonitoringActive = true;
+                    console.log('✅ Monitoramento MIDI iniciado');
+                    
+                    // Inicia polling para verificar comandos MIDI
+                    startMidiPolling();
+                } else {
+                    console.error('❌ Erro ao iniciar monitoramento MIDI:', data.error);
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao iniciar monitoramento MIDI:', error);
+            }
+        }
+        
+        function startMidiPolling() {
+            // Verifica comandos MIDI a cada 500ms
+            setInterval(async () => {
+                if (!midiMonitoringActive) return;
+                
+                try {
+                    const response = await fetch('/api/midi/commands/received');
+                    const data = await response.json();
+                    
+                    if (data.success && data.commands && data.commands.length > 0) {
+                        // Processa novos comandos MIDI
+                        data.commands.forEach(command => {
+                            processMidiCommand(command);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erro ao verificar comandos MIDI:', error);
+                }
+            }, 500);
+        }
+        
+        function processMidiCommand(command) {
+            console.log('🎹 Comando MIDI recebido:', command);
+            
+            // Se for um Program Change do Chocolate, busca e ativa o patch correspondente
+            if (command.type === 'program_change' && command.program !== undefined) {
+                console.log(`🎹 Program Change detectado: ${command.program}`);
+                findAndActivatePatchByProgram(command.program);
+            }
+        }
+        
+        async function findAndActivatePatchByProgram(program) {
+            try {
+                console.log(`🔍 Procurando patch com program ${program}...`);
+                
                 const response = await fetch('/api/patches');
                 const data = await response.json();
                 
                 if (data.success && data.data) {
-                    chocolatePatches = data.data.filter(patch => 
-                        patch.input_device === 'Chocolate MIDI'
+                    const chocolatePatches = data.data.filter(patch => 
+                        patch.input_device === 'Chocolate MIDI' && 
+                        patch.program === program
                     );
-                    renderChocolatePatches();
+                    
+                    if (chocolatePatches.length > 0) {
+                        const patch = chocolatePatches[0];
+                        console.log(`✅ Patch encontrado: ${patch.name}`);
+                        await activatePatch(patch);
+                    } else {
+                        console.log(`❌ Nenhum patch encontrado para program ${program}`);
+                    }
                 }
             } catch (error) {
-                console.error('Erro ao carregar patches do Chocolate:', error);
+                console.error('Erro ao procurar patch por program:', error);
             }
         }
         
-        function renderChocolatePatches() {
-            const container = document.getElementById('chocolate-patches');
-            if (!container) return;
-            
-            container.innerHTML = '';
-            
-            chocolatePatches.forEach(patch => {
-                const patchElement = document.createElement('div');
-                patchElement.className = 'patch-item';
-                
-                if (activePatch && activePatch.id === patch.id) {
-                    patchElement.classList.add('active');
-                }
-                
-                const details = [];
-                if (patch.input_channel) details.push(`Canal ${patch.input_channel}`);
-                if (patch.command_type) details.push(patch.command_type.toUpperCase());
-                if (patch.program !== null) details.push(`Prog ${patch.program}`);
-                
-                patchElement.innerHTML = `
-                    <div class="patch-name">${patch.name}</div>
-                    <div class="patch-details">${details.join(' • ')}</div>
-                `;
-                
-                patchElement.onclick = () => selectChocolatePatch(patch);
-                
-                container.appendChild(patchElement);
-            });
-        }
-        
-        async function selectChocolatePatch(patch) {
+        async function activatePatch(patch) {
             try {
-                console.log(`🎹 Selecionando patch do Chocolate: ${patch.name}`);
+                console.log(`🎹 Ativando patch: ${patch.name}`);
                 
                 // Ativa o patch via API
                 const response = await fetch('/api/midi/patch/load', {
@@ -492,7 +523,6 @@
                 if (data.success) {
                     activePatch = patch;
                     showActivePatch(patch);
-                    renderChocolatePatches(); // Atualiza visual dos patches
                     
                     // Recarrega informações dos dispositivos para mostrar mudanças
                     setTimeout(loadDevicesInfo, 1000);
@@ -500,12 +530,10 @@
                     console.log(`✅ Patch ${patch.name} ativado com sucesso`);
                 } else {
                     console.error('❌ Erro ao ativar patch:', data.error);
-                    alert('Erro ao ativar patch: ' + (data.error || 'Erro desconhecido'));
                 }
                 
             } catch (error) {
-                console.error('❌ Erro ao selecionar patch:', error);
-                alert('Erro ao selecionar patch: ' + error.message);
+                console.error('❌ Erro ao ativar patch:', error);
             }
         }
         
@@ -558,8 +586,8 @@
         // Inicialização
         window.addEventListener('DOMContentLoaded', loadPalcoInfo);
         
-        // Atualiza a cada 2 segundos para responder rapidamente
-        setInterval(loadPalcoInfo, 2000);
+        // Atualiza a cada 3 segundos para manter informações atualizadas
+        setInterval(loadPalcoInfo, 3000);
     </script>
 </body>
 </html> 

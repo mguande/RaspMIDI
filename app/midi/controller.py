@@ -37,6 +37,8 @@ class MIDIController:
         # Configurações de entrada/saída
         self.midi_config = self._load_midi_config()
         
+        self._last_patch_activated = None
+        
         self.logger.info("Controlador MIDI inicializado")
     
     def _load_midi_config(self) -> Dict:
@@ -638,11 +640,9 @@ class MIDIController:
         """Envia patch para o dispositivo de saída configurado"""
         try:
             output_device = self.midi_config.get('output_device')
-            
             if not output_device:
                 self.logger.error("Nenhum dispositivo de saída configurado")
                 return False
-            
             # Envia para o dispositivo apropriado
             if 'zoom' in output_device.lower() or 'g3x' in output_device.lower():
                 if not self.zoom_g3x or not self.device_status['zoom_g3x']['connected']:
@@ -658,12 +658,23 @@ class MIDIController:
             else:
                 self.logger.error(f"Dispositivo de saída não reconhecido: {output_device}")
                 return False
-            
             if success:
                 self.logger.info(f"Patch {patch_data.get('name', 'Unknown')} enviado para {output_device}")
-            
+                # Busca patch completo do cache se possível
+                try:
+                    from flask import current_app
+                    cache_manager = getattr(current_app, 'cache_manager', None)
+                    if cache_manager and 'id' in patch_data:
+                        patch_full = cache_manager.get_patch(patch_data['id'])
+                        if patch_full:
+                            self._last_patch_activated = patch_full
+                        else:
+                            self._last_patch_activated = patch_data
+                    else:
+                        self._last_patch_activated = patch_data
+                except Exception:
+                    self._last_patch_activated = patch_data
             return success
-            
         except Exception as e:
             self.logger.error(f"Erro ao enviar patch: {str(e)}")
             return False
