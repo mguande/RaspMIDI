@@ -7,6 +7,254 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <style>
+        body {
+            background: #181c24;
+            color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #23283a, #2d8cff);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        
+        .status-bar {
+            background: #23283a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            border: 1px solid #333;
+        }
+        
+        .card {
+            background: #1a1e2a;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s ease;
+            border: 1px solid #333;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .card-title {
+            color: #ffb300;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .form-input, .form-textarea, select {
+            background: #23283a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .form-input:focus, .form-textarea:focus, select:focus {
+            outline: none;
+            border-color: #2d8cff;
+            box-shadow: 0 0 5px rgba(45, 140, 255, 0.3);
+        }
+        
+        .form-label {
+            color: #ccc;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: block;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: #2d8cff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1a5fb4;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #138496;
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .alert {
+            background: #23283a;
+            border: 1px solid #444;
+            color: #fff;
+        }
+        
+        .alert-warning {
+            border-left-color: #f39c12;
+            background: linear-gradient(135deg, #23283a, #2a2e3a);
+        }
+        
+        .menu-nav {
+            background: #23283a;
+            border: 1px solid #333;
+        }
+        
+        .menu-item {
+            color: #ccc;
+            border-bottom: 1px solid #333;
+        }
+        
+        .menu-item:hover {
+            background: #2a2e3a;
+            color: #fff;
+        }
+        
+        .menu-item.active {
+            background: #2d8cff;
+            color: #fff;
+        }
+        
+        .content-section {
+            background: #1a1e2a;
+            border: 1px solid #333;
+        }
+        
+        .devices-grid {
+            background: #23283a;
+            border: 1px solid #333;
+        }
+        
+        .device-item {
+            background: #1a1e2a;
+            border: 1px solid #333;
+        }
+        
+        .device-item:hover {
+            border-color: #2d8cff;
+        }
+        
+        .patches-grid {
+            background: #23283a;
+            border: 1px solid #333;
+        }
+        
+        .patch-card {
+            background: #1a1e2a;
+            border: 1px solid #333;
+        }
+        
+        .patch-card:hover {
+            border-color: #2d8cff;
+        }
+        
+        .effects-container {
+            background: #23283a;
+            border: 1px solid #333;
+        }
+        
+        .effect-box {
+            background: #1a1e2a;
+            border: 1px solid #333;
+        }
+        
+        .effect-box:hover {
+            border-color: #2d8cff;
+        }
+        
+        .modal-content {
+            background: #1a1e2a;
+            border: 1px solid #333;
+        }
+        
+        .modal-header {
+            background: #23283a;
+            border-bottom: 1px solid #333;
+        }
+        
+        .modal-title {
+            color: #ffb300;
+        }
+        
+        .loading {
+            border: 2px solid #333;
+            border-top: 2px solid #2d8cff;
+        }
+    </style>
 </head>
 <body>
     <div class="container">

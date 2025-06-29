@@ -3390,6 +3390,41 @@ class RaspMIDI {
         
         console.log('✅ Todos os selects de dispositivos foram populados sem duplicações');
     }
+
+    renderChocolatePedal(bankNumber, connected) {
+        // Calcula página de 4 bancos
+        let page = Math.floor(bankNumber / 4);
+        let ledIndex = bankNumber % 4;
+        // Atualiza LEDs
+        for (let i = 0; i < 4; i++) {
+            const led = document.getElementById('led-' + i);
+            if (!led) continue;
+            if (connected && i === ledIndex) {
+                led.classList.add('on');
+                led.classList.remove('off');
+            } else {
+                led.classList.remove('on');
+                led.classList.add('off');
+            }
+        }
+        // Atualiza display
+        const display = document.getElementById('chocolate-display');
+        if (display) {
+            if (connected) {
+                display.textContent = ('' + (bankNumber + 1)).padStart(3, '0');
+                display.classList.remove('off');
+            } else {
+                display.textContent = 'OFF';
+                display.classList.add('off');
+            }
+        }
+        // Atualiza ícone de conexão
+        const icon = document.getElementById('chocolate-connection-icon');
+        if (icon) {
+            icon.classList.toggle('connected', connected);
+            icon.classList.toggle('disconnected', !connected);
+        }
+    }
 }
 
 // Inicializa a aplicação quando o DOM estiver pronto

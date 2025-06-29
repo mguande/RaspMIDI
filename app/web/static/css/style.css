@@ -1428,4 +1428,108 @@ body {
 .effect-status.disabled {
     background-color: #dc3545;
     box-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
+}
+
+/* Fonte DSEG7 Classic para display de calculadora */
+@font-face {
+    font-family: 'DSEG7Classic';
+    src: url('/static/css/DSEG7Classic-Regular.woff2') format('woff2'),
+         url('/static/css/DSEG7Classic-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+.chocolate-box {
+    width: 460px;
+    height: 80px;
+    margin: 0 auto 1.5rem auto;
+    background: #222;
+    border-radius: 1.2rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border: 2px solid #444;
+    min-width: 320px;
+    max-width: 98vw;
+}
+
+.chocolate-pedal-visual {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 90%;
+    height: 60px;
+    position: relative;
+}
+
+.chocolate-leds {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    margin-right: 32px;
+    margin-left: 12px;
+}
+
+.chocolate-led {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #222;
+    border: 2.5px solid #444;
+    box-shadow: 0 0 8px #000 inset;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.chocolate-led.on {
+    background: #00bfff;
+    box-shadow: 0 0 16px #00bfff, 0 0 4px #fff inset;
+    border-color: #00bfff;
+}
+
+.chocolate-led.off {
+    background: #222;
+    border-color: #444;
+    box-shadow: 0 0 8px #000 inset;
+}
+
+.chocolate-display-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    background: #111;
+    border-radius: 0.5rem;
+    border: 2.5px solid #222;
+    box-shadow: 0 0 16px #000 inset;
+    min-width: 90px;
+    max-width: 120px;
+    margin-left: 12px;
+}
+
+.chocolate-display {
+    font-family: 'DSEG7Classic', monospace;
+    font-size: 2.6rem;
+    color: #00bfff;
+    background: #111;
+    padding: 0 10px;
+    border-radius: 0.3rem;
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 8px #00bfff, 0 0 2px #fff;
+    user-select: none;
+    min-width: 70px;
+    display: inline-block;
+    text-align: center;
+    line-height: 2.6rem;
+    transition: color 0.2s;
+}
+
+.chocolate-display.off {
+    color: #ff3333;
+    text-shadow: 0 0 8px #ff3333, 0 0 2px #fff;
 } 

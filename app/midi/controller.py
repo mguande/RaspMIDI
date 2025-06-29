@@ -1199,6 +1199,25 @@ class MIDIController:
             # Adiciona à lista de comandos recebidos
             self.add_received_command(command)
             
+            # Se for Program Change, ativa o patch correspondente do Chocolate
+            if message.type == 'program_change':
+                try:
+                    from flask import current_app
+                    cache_manager = getattr(current_app, 'cache_manager', None)
+                    if cache_manager:
+                        patches = cache_manager.get_patches()
+                        for patch in patches:
+                            if (
+                                patch.get('input_device') == 'Chocolate MIDI' and 
+                                int(patch.get('input_channel', -1)) == int(command['program'])
+                            ):
+                                self.logger.info(f"Ativando patch via Program Change do Chocolate: {patch['name']}")
+                                self.send_patch(patch)
+                                self._last_patch_activated = patch
+                                break
+                except Exception as e:
+                    self.logger.error(f"Erro ao ativar patch via Program Change: {str(e)}")
+            
             # Processa mapeamentos de banco se ativo
             self._process_bank_mappings(command)
             

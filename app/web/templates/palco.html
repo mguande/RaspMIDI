@@ -233,7 +233,7 @@
         </div>
         
         <div class="devices-grid" id="devices-grid">
-            <!-- Dispositivos serão renderizados aqui -->
+            <!-- Dispositivos serão renderizados aqui dinamicamente -->
         </div>
     </div>
     
@@ -298,6 +298,20 @@
                 if (data.success && data.data && data.data.active_patch) {
                     activePatch = data.data.active_patch;
                     showActivePatch(activePatch);
+                    
+                    // Atualiza o visual do Chocolate se o patch ativo for do Chocolate
+                    if (activePatch.input_device === 'Chocolate MIDI' && activePatch.input_channel !== undefined) {
+                        const bankNumber = parseInt(activePatch.input_channel);
+                        // Busca o status de conexão do Chocolate
+                        const devicesResponse = await fetch('/api/midi/devices/status_detailed');
+                        const devicesData = await devicesResponse.json();
+                        if (devicesData.success) {
+                            const chocolateDevice = devicesData.data.find(dev => dev.type === 'chocolate');
+                            if (chocolateDevice) {
+                                renderChocolatePedal(bankNumber, chocolateDevice.connected);
+                            }
+                        }
+                    }
                 } else {
                     hideActivePatch();
                 }
@@ -336,8 +350,15 @@
                 
                 if (data.success && Array.isArray(data.data)) {
                     data.data.forEach(dev => {
-                        const box = createDeviceBox(dev);
-                        grid.appendChild(box);
+                        if (dev.type === 'chocolate') {
+                            // Para o Chocolate, usa o visual do pedal
+                            const box = createChocolatePedalBox(dev);
+                            grid.appendChild(box);
+                        } else {
+                            // Para outros dispositivos, usa o box padrão
+                            const box = createDeviceBox(dev);
+                            grid.appendChild(box);
+                        }
                     });
                 }
             } catch (error) {
@@ -415,6 +436,80 @@
             `;
             
             return box;
+        }
+        
+        function createChocolatePedalBox(dev) {
+            const box = document.createElement('div');
+            box.className = 'device-box chocolate-box';
+            
+            const connectionClass = dev.connected ? 'connected' : 'disconnected';
+            
+            // Calcula o banco atual baseado no patch ativo
+            let currentBank = 0;
+            if (activePatch && activePatch.input_device === 'Chocolate MIDI' && activePatch.input_channel !== undefined) {
+                currentBank = parseInt(activePatch.input_channel);
+            }
+            
+            // Renderiza o pedal do Chocolate
+            renderChocolatePedal(currentBank, dev.connected);
+            
+            box.innerHTML = `
+                <div class="device-header">
+                    <span class="device-title">Chocolate MIDI</span>
+                    <span class="connection-icon ${connectionClass}"></span>
+                </div>
+                <div class="chocolate-pedal-visual">
+                    <div class="chocolate-leds">
+                        <div class="chocolate-led" id="led-0"></div>
+                        <div class="chocolate-led" id="led-1"></div>
+                        <div class="chocolate-led" id="led-2"></div>
+                        <div class="chocolate-led" id="led-3"></div>
+                    </div>
+                    <div class="chocolate-display-wrapper">
+                        <span class="chocolate-display" id="chocolate-display">000</span>
+                    </div>
+                </div>
+            `;
+            
+            return box;
+        }
+        
+        function renderChocolatePedal(bankNumber, connected) {
+            // Calcula página de 4 bancos
+            let page = Math.floor(bankNumber / 4);
+            let ledIndex = bankNumber % 4;
+            
+            // Atualiza LEDs
+            for (let i = 0; i < 4; i++) {
+                const led = document.getElementById('led-' + i);
+                if (!led) continue;
+                if (connected && i === ledIndex) {
+                    led.classList.add('on');
+                    led.classList.remove('off');
+                } else {
+                    led.classList.remove('on');
+                    led.classList.add('off');
+                }
+            }
+            
+            // Atualiza display
+            const display = document.getElementById('chocolate-display');
+            if (display) {
+                if (connected) {
+                    display.textContent = ('' + (bankNumber + 1)).padStart(3, '0');
+                    display.classList.remove('off');
+                } else {
+                    display.textContent = 'OFF';
+                    display.classList.add('off');
+                }
+            }
+            
+            // Atualiza ícone de conexão
+            const icon = document.getElementById('chocolate-connection-icon');
+            if (icon) {
+                icon.classList.toggle('connected', connected);
+                icon.classList.toggle('disconnected', !connected);
+            }
         }
         
         async function startMidiMonitoring() {
@@ -523,6 +618,20 @@
                 if (data.success) {
                     activePatch = patch;
                     showActivePatch(patch);
+                    
+                    // Atualiza o visual do Chocolate se o patch for do Chocolate
+                    if (patch.input_device === 'Chocolate MIDI' && patch.input_channel !== undefined) {
+                        const bankNumber = parseInt(patch.input_channel);
+                        // Busca o status de conexão do Chocolate
+                        const devicesResponse = await fetch('/api/midi/devices/status_detailed');
+                        const devicesData = await devicesResponse.json();
+                        if (devicesData.success) {
+                            const chocolateDevice = devicesData.data.find(dev => dev.type === 'chocolate');
+                            if (chocolateDevice) {
+                                renderChocolatePedal(bankNumber, chocolateDevice.connected);
+                            }
+                        }
+                    }
                     
                     // Recarrega informações dos dispositivos para mostrar mudanças
                     setTimeout(loadDevicesInfo, 1000);
