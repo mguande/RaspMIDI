@@ -1340,8 +1340,8 @@ class MIDIController:
         except Exception as e:
             self.logger.error(f"Erro ao desconectar dispositivos: {str(e)}")
     
-    def send_sysex(self, data: list, device_name: str = None) -> bool:
-        """Envia mensagem SysEx para o dispositivo de saída ou nome especificado"""
+    def send_sysex(self, data: list, device_name: str = None, output_channel: int = 0) -> bool:
+        """Envia mensagem SysEx para o dispositivo de saída ou nome especificado, aceita canal de saída para referência/log."""
         try:
             output_device = device_name or self.midi_config.get('output_device')
             if not output_device:
@@ -1358,10 +1358,11 @@ class MIDIController:
                 return False
             import mido
             sysex_data = [0xF0] + data + [0xF7]
+            # Canal de saída não é usado diretamente em SysEx, mas pode ser incluído no log
             msg = mido.Message('sysex', data=sysex_data[1:-1])
             with mido.open_output(real_device_name) as port:
                 port.send(msg)
-            self.logger.info(f"SysEx enviado para {real_device_name}: {sysex_data}")
+            self.logger.info(f"SysEx enviado para {real_device_name} (canal de saída {output_channel}): {sysex_data}")
             return True
         except Exception as e:
             self.logger.error(f"Erro ao enviar SysEx: {str(e)}")

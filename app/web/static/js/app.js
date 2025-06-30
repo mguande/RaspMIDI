@@ -3512,27 +3512,41 @@ class RaspMIDI {
         const btnExample = document.getElementById('btn-sysex-example');
         const btnAutomate = document.getElementById('btn-sysex-automate');
         const log = document.getElementById('sysex-log');
+        // Novos selects
+        const inputDeviceSelect = document.getElementById('sysex-input-device');
+        const outputDeviceSelect = document.getElementById('sysex-output-device');
+        // Popular combos de dispositivos
+        this.populateSysExDeviceSelects();
         if (!btnSend || !btnExample || !btnAutomate || !log) return;
 
         btnSend.onclick = async () => {
             const inputCh = parseInt(document.getElementById('sysex-input-channel').value);
             const outputCh = parseInt(document.getElementById('sysex-output-channel').value);
+            const inputDevice = inputDeviceSelect.value;
+            const outputDevice = outputDeviceSelect.value;
             const hex = document.getElementById('sysex-command').value.trim();
             this.logSysEx(`$ Enviando SysEx: ${hex}`);
+            // Enviar para backend
             try {
-                const response = await fetch('/api/midi/sysex', {
+                const response = await fetch(`${this.apiBase}/midi/sysex`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ input_channel: inputCh, output_channel: outputCh, data: hex })
+                    body: JSON.stringify({
+                        command: hex,
+                        input_channel: inputCh,
+                        output_channel: outputCh,
+                        input_device: inputDevice,
+                        output_device: outputDevice
+                    })
                 });
                 const data = await response.json();
                 if (data.success) {
-                    this.logSysEx('✅ Resposta: ' + (data.response || 'OK'));
+                    this.logSysEx('> ' + (data.result || 'Comando enviado com sucesso.'));
                 } else {
-                    this.logSysEx('❌ Erro: ' + (data.error || 'Erro desconhecido'));
+                    this.logSysEx('! Erro: ' + (data.error || 'Erro desconhecido.'));
                 }
             } catch (e) {
-                this.logSysEx('❌ Erro: ' + e.message);
+                this.logSysEx('! Erro ao enviar SysEx: ' + e.message);
             }
         };
         btnExample.onclick = () => {
@@ -3549,6 +3563,31 @@ class RaspMIDI {
             }
         };
     }
+
+    populateSysExDeviceSelects() {
+        // Preenche os selects de dispositivos de entrada e saída na seção SysEx
+        const inputDeviceSelect = document.getElementById('sysex-input-device');
+        const outputDeviceSelect = document.getElementById('sysex-output-device');
+        if (!inputDeviceSelect || !outputDeviceSelect) return;
+        // Limpa
+        inputDeviceSelect.innerHTML = '<option value="">Selecione...</option>';
+        outputDeviceSelect.innerHTML = '<option value="">Selecione...</option>';
+        // Popula entrada
+        (this.devices?.inputs || []).forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.name;
+            option.textContent = `${device.name} (${device.real_name})`;
+            inputDeviceSelect.appendChild(option);
+        });
+        // Popula saída
+        (this.devices?.outputs || []).forEach(device => {
+            const option = document.createElement('option');
+            option.value = device.name;
+            option.textContent = `${device.name} (${device.real_name})`;
+            outputDeviceSelect.appendChild(option);
+        });
+    }
+
     logSysEx(msg) {
         const log = document.getElementById('sysex-log');
         if (!log) return;

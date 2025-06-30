@@ -581,9 +581,10 @@ def send_sysex_command():
     """Envia comando SysEx para o dispositivo de saída"""
     try:
         data = request.get_json()
-        if not data or 'data' not in data:
+        if not data or ('data' not in data and 'command' not in data):
             return jsonify({'success': False, 'error': 'Dados SysEx são obrigatórios'}), 400
-        hex_str = data['data']
+        # Suporta tanto 'data' (antigo) quanto 'command' (novo)
+        hex_str = data.get('command') or data.get('data')
         # Converte string hex para lista de ints
         try:
             sysex_bytes = [int(b, 16) for b in hex_str.replace(',', ' ').replace(';', ' ').split()]
@@ -591,11 +592,13 @@ def send_sysex_command():
             return jsonify({'success': False, 'error': f'Erro ao converter hex: {e}'}), 400
         input_channel = data.get('input_channel', 0)
         output_channel = data.get('output_channel', 0)
+        output_device = data.get('output_device')
+        # input_device é aceito mas não usado ainda
         midi_controller = current_app.midi_controller
-        # Envia SysEx (ajuste conforme seu MIDIController)
-        result = midi_controller.send_sysex(sysex_bytes, input_channel, output_channel)
+        # Envia SysEx com canal de saída e dispositivo
+        result = midi_controller.send_sysex(sysex_bytes, output_device, output_channel)
         if result:
-            return jsonify({'success': True, 'response': 'SysEx enviado com sucesso'})
+            return jsonify({'success': True, 'result': 'SysEx enviado com sucesso'})
         else:
             return jsonify({'success': False, 'error': 'Erro ao enviar SysEx'}), 500
     except Exception as e:
