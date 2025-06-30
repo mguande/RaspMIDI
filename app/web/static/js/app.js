@@ -12,6 +12,7 @@ class RaspMIDI {
         this._creatingPatch = false;
         this._updatingPatch = false;
         this._editingPatchId = null; // Controle para modo de edição
+        this._patchViewMode = 'cards'; // Adiciona este atributo
         
         // Monitor MIDI
         this.midiMonitor = {
@@ -53,6 +54,7 @@ class RaspMIDI {
             this.setupModalListeners();
             this.setupEdicaoMenu(); // Chamado apenas uma vez
             this.startStatusUpdates();
+            this.setupPatchListControls(); // Adiciona listeners para ordenação e visualização
             
             console.log("✅ Aplicação inicializada com sucesso");
             
@@ -587,103 +589,44 @@ class RaspMIDI {
     
     renderPatches() {
         try {
-            // Previne renderização múltipla
-            if (this._renderingPatches) {
-                console.warn("⚠️ Renderização de patches já em andamento, ignorando...");
-                return;
-            }
-            
+            if (this._renderingPatches) return;
             this._renderingPatches = true;
-            
             const container = document.getElementById('patches-container');
-            
-            if (!container) {
-                console.warn("⚠️ Container de patches não encontrado");
-                this._renderingPatches = false;
-                return;
-            }
-            
-            // Valida se patches é um array
-            if (!Array.isArray(this.patches)) {
-                console.error("❌ Patches não é um array:", this.patches);
-                this.patches = [];
-            }
-            
+            if (!container) { this._renderingPatches = false; return; }
+            if (!Array.isArray(this.patches)) this.patches = [];
             if (this.patches.length === 0) {
-                container.innerHTML = `
-                    <div class="card text-center">
-                        <p>Nenhum patch encontrado. Crie seu primeiro patch!</p>
-                        <button class="btn btn-primary" onclick="app.showNewPatchModal()">
-                            Criar Patch
-                        </button>
-                    </div>
-                `;
-                this._renderingPatches = false;
-                return;
+                container.innerHTML = `<div class="card text-center"><p>Nenhum patch encontrado. Crie seu primeiro patch!</p><button class="btn btn-primary" onclick="app.showNewPatchModal()">Criar Patch</button></div>`;
+                this._renderingPatches = false; return;
             }
-            
-            // Filtra patches válidos
-            const validPatches = this.patches.filter(patch => {
-                if (!patch || typeof patch !== 'object') {
-                    console.warn("⚠️ Patch inválido ignorado:", patch);
-                    return false;
-                }
-                return true;
-            });
-            
-            if (validPatches.length === 0) {
-                container.innerHTML = `
-                    <div class="card text-center">
-                        <p>Nenhum patch válido encontrado.</p>
-                        <button class="btn btn-primary" onclick="app.showNewPatchModal()">
-                            Criar Patch
-                        </button>
-                    </div>
-                `;
-                this._renderingPatches = false;
-                return;
+            // Ordenação
+            const sortCombo = document.getElementById('patch-sort-mode');
+            let patches = [...this.patches];
+            let sortMode = sortCombo ? sortCombo.value : 'input';
+            if (sortMode === 'input') {
+                patches.sort((a, b) => (a.input_channel ?? 999) - (b.input_channel ?? 999));
+            } else if (sortMode === 'output') {
+                patches.sort((a, b) => {
+                    if ((a.zoom_bank || '') < (b.zoom_bank || '')) return -1;
+                    if ((a.zoom_bank || '') > (b.zoom_bank || '')) return 1;
+                    return (a.zoom_patch ?? 999) - (b.zoom_patch ?? 999);
+                });
+            } else if (sortMode === 'created') {
+                patches.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
             }
-            
-            const patchesHtml = validPatches.map(patch => {
-                try {
-                    return this.createPatchCard(patch);
-                } catch (error) {
-                    console.error("❌ Erro ao criar card para patch:", patch, error);
-                    return `
-                        <div class="patch-card error">
-                            <div class="patch-header">
-                                <div class="patch-name">Patch Corrompido</div>
-                            </div>
-                            <div class="patch-details">
-                                <p>Erro ao carregar este patch</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            }).join('');
-            
-            container.innerHTML = `
-                <div class="patches-grid">
-                    ${patchesHtml}
-                </div>
-            `;
-            
+            // Visualização
+            const viewMode = this._patchViewMode || 'cards';
+            if (viewMode === 'list') {
+                container.innerHTML = `<table class="patch-list-table" style="width:100%;background:#1a1e2a;color:#fff;border-radius:8px;overflow:hidden;"><thead><tr><th>Nome</th><th>Canal Entrada</th><th>Dispositivo Entrada</th><th>Banco/Patch Saída</th><th>Dispositivo Saída</th><th>Ações</th></tr></thead><tbody>${patches.map(patch => this.createPatchListRow(patch)).join('')}</tbody></table>`;
+            } else {
+                const patchesHtml = patches.map(patch => this.createPatchCard(patch)).join('');
+                container.innerHTML = `<div class="patches-grid">${patchesHtml}</div>`;
+            }
             this._renderingPatches = false;
-            
         } catch (error) {
-            console.error("❌ Erro ao renderizar patches:", error);
             this._renderingPatches = false;
-            
             const container = document.getElementById('patches-container');
             if (container) {
-                container.innerHTML = `
-                    <div class="card text-center error">
-                        <p>Erro ao carregar patches: ${error.message}</p>
-                        <button class="btn btn-primary" onclick="app.loadPatches()">
-                            Tentar Novamente
-                        </button>
-                    </div>
-                `;
+                container.innerHTML = `<div class="card text-center error"><p>Erro ao carregar patches: ${error.message}</p><button class="btn btn-primary" onclick="app.loadPatches()">Tentar Novamente</button></div>`;
             }
         }
     }
@@ -1307,22 +1250,34 @@ class RaspMIDI {
     // Handler para mudança de banco da Zoom
     handleZoomBankChange(bankLetter) {
         if (!bankLetter) return;
-        
         // Define automaticamente a letra do banco
         const bankLetterField = document.getElementById('patch-zoom-bank-letter');
         if (bankLetterField) {
             bankLetterField.value = bankLetter;
         }
-        
+        // Limpa o combo de patch
         const patchSelect = document.getElementById('patch-zoom-patch');
-        if (!patchSelect) return;
-        
-        // Mostra loading no combo de patches
-        patchSelect.innerHTML = '<option value="">Carregando patches...</option>';
-        patchSelect.disabled = true;
-        
-        // Carregar patches do banco selecionado
-        this.loadZoomPatchesForBank(bankLetter);
+        if (patchSelect) {
+            patchSelect.innerHTML = '<option value="">Selecione um patch...</option>';
+            patchSelect.disabled = false;
+        }
+        // Não carrega nomes automaticamente!
+    }
+
+    // Carregar patches da Zoom manualmente (ao clicar no botão)
+    async manualLoadZoomPatches() {
+        const bankSelect = document.getElementById('patch-zoom-bank');
+        const bankLetter = bankSelect ? bankSelect.value : '';
+        if (!bankLetter) {
+            this.showNotification('Selecione um banco antes de atualizar os nomes dos patches.', 'warning');
+            return;
+        }
+        const patchSelect = document.getElementById('patch-zoom-patch');
+        if (patchSelect) {
+            patchSelect.innerHTML = '<option value="">Carregando patches...</option>';
+            patchSelect.disabled = true;
+        }
+        await this.loadZoomPatchesForBank(bankLetter);
     }
 
     // Carregar canais disponíveis para Chocolate (excluindo já usados)
@@ -3488,6 +3443,30 @@ class RaspMIDI {
             bankLetter: bankLetter,
             patch: localPatchNumber  // Mudança aqui: patch em vez de localPatchNumber
         };
+    }
+
+    // Adiciona listeners para ordenação e visualização
+    setupPatchListControls() {
+        const sortCombo = document.getElementById('patch-sort-mode');
+        const btnCards = document.getElementById('view-cards');
+        const btnList = document.getElementById('view-list');
+        if (sortCombo) {
+            sortCombo.addEventListener('change', () => this.renderPatches());
+        }
+        if (btnCards) {
+            btnCards.addEventListener('click', () => {
+                this._patchViewMode = 'cards';
+                this.renderPatches();
+            });
+        }
+        if (btnList) {
+            btnList.addEventListener('click', () => {
+                this._patchViewMode = 'list';
+                this.renderPatches();
+            });
+        }
+        // Padrão: cards
+        this._patchViewMode = 'cards';
     }
 }
 

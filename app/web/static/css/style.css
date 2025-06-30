@@ -272,12 +272,13 @@ body {
 
 /* Patch Cards - Enhanced */
 .patch-card {
-    background: var(--card-background);
+    background: #1a1e2a !important;
+    color: #fff !important;
+    border: 1.5px solid #333 !important;
     border-radius: 10px;
     padding: 0;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
-    border: 2px solid transparent;
     overflow: hidden;
 }
 
@@ -310,7 +311,8 @@ body {
 /* Header do patch com fundo */
 .patch-header {
     padding: 15px 20px;
-    background: rgba(0,0,0,0.05);
+    background: #23283a !important;
+    color: #ffb300 !important;
     border-bottom: 1px solid rgba(0,0,0,0.1);
     display: flex;
     justify-content: space-between;
@@ -1532,4 +1534,32 @@ body {
 .chocolate-display.off {
     color: #ff3333;
     text-shadow: 0 0 8px #ff3333, 0 0 2px #fff;
+}
+
+/* Visualização em lista de patches */
+.patch-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #1a1e2a;
+    color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+.patch-list-table th, .patch-list-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #333;
+    text-align: left;
+}
+.patch-list-table th {
+    background: #23283a;
+    color: #ffb300;
+    font-weight: 700;
+}
+.patch-list-table tr:last-child td {
+    border-bottom: none;
+}
+.patch-list-table tr:hover {
+    background: #23283a;
 } 

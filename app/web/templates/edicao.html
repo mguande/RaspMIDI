@@ -236,18 +236,14 @@
             border-color: #2d8cff;
         }
         
-        .modal-content {
-            background: #1a1e2a;
-            border: 1px solid #333;
-        }
-        
-        .modal-header {
-            background: #23283a;
-            border-bottom: 1px solid #333;
+        .modal-content, .modal-header, .modal-footer {
+            background: #23283a !important;
+            color: #fff !important;
+            border: 1px solid #333 !important;
         }
         
         .modal-title {
-            color: #ffb300;
+            color: #ffb300 !important;
         }
         
         .loading {
@@ -397,13 +393,20 @@
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">🎛️ Patches</h2>
-                            <div class="section-actions">
+                            <div class="section-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                                 <button class="btn btn-primary" onclick="app.showNewPatchModal()">
                                     <i class="fas fa-plus"></i> Novo Patch
                                 </button>
                                 <button class="btn btn-secondary" onclick="app.refreshZoomPatches()">
                                     <i class="fas fa-sync-alt"></i> Atualizar Patches Zoom
                                 </button>
+                                <select id="patch-sort-mode" class="form-input" style="min-width: 180px;">
+                                    <option value="input">Ordenar por Canal de Entrada</option>
+                                    <option value="output">Ordenar por Banco/Patch de Saída</option>
+                                    <option value="created">Ordenar por Data de Criação</option>
+                                </select>
+                                <button id="view-cards" class="btn btn-secondary btn-small" title="Visualizar em Cards" style="padding: 7px 10px;"><i class="fas fa-th-large"></i></button>
+                                <button id="view-list" class="btn btn-secondary btn-small" title="Visualizar em Lista" style="padding: 7px 10px;"><i class="fas fa-list"></i></button>
                             </div>
                         </div>
                         <div id="patches-container">
@@ -819,12 +822,17 @@
                                 <option value="J">Banco J</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="patch-zoom-patch">Patch</label>
-                            <select id="patch-zoom-patch" name="zoom_patch" class="form-input" onchange="app.handleZoomPatchChange(this.value)">
-                                <option value="">Selecione um patch...</option>
-                            </select>
-                            <small class="form-help">Patches já utilizados em outros patches foram excluídos da lista</small>
+                        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                            <div style="flex:1;">
+                                <label for="patch-zoom-patch">Patch</label>
+                                <select id="patch-zoom-patch" name="zoom_patch" class="form-input" onchange="app.handleZoomPatchChange(this.value)">
+                                    <option value="">Selecione um patch...</option>
+                                </select>
+                                <small class="form-help">Patches já utilizados em outros patches foram excluídos da lista</small>
+                            </div>
+                            <button type="button" class="btn btn-info btn-small" id="btn-refresh-zoom-patches" style="margin-top: 22px;" onclick="app.manualLoadZoomPatches()">
+                                <i class="fas fa-sync-alt"></i> Atualizar nomes dos patches da Zoom
+                            </button>
                         </div>
                         
                         <!-- Configuração de Efeitos -->
