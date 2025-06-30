@@ -16,7 +16,8 @@ class Patch:
                  input_device: str = "", input_channel: Optional[int] = None,
                  output_device: str = "", command_type: str = "",
                  zoom_bank: Optional[int] = None, zoom_patch: Optional[int] = None,
-                 program: Optional[int] = None, cc: Optional[int] = None, value: Optional[int] = None,
+                 zoom_bank_letter: Optional[str] = None, program: Optional[int] = None, 
+                 cc: Optional[int] = None, value: Optional[int] = None,
                  note: Optional[int] = None, velocity: Optional[int] = None,
                  created_at: Optional[str] = None, updated_at: Optional[str] = None):
         self.id = id
@@ -28,6 +29,7 @@ class Patch:
         self.command_type = command_type
         self.zoom_bank = zoom_bank
         self.zoom_patch = zoom_patch
+        self.zoom_bank_letter = zoom_bank_letter
         self.program = program
         self.cc = cc
         self.value = value
@@ -48,6 +50,7 @@ class Patch:
             'command_type': self.command_type,
             'zoom_bank': self.zoom_bank,
             'zoom_patch': self.zoom_patch,
+            'zoom_bank_letter': self.zoom_bank_letter,
             'program': self.program,
             'cc': self.cc,
             'value': self.value,
@@ -70,6 +73,7 @@ class Patch:
             command_type=data.get('command_type', ''),
             zoom_bank=data.get('zoom_bank'),
             zoom_patch=data.get('zoom_patch'),
+            zoom_bank_letter=data.get('zoom_bank_letter'),
             program=data.get('program'),
             cc=data.get('cc'),
             value=data.get('value'),
@@ -276,6 +280,7 @@ class DatabaseManager:
                     command_type TEXT,
                     zoom_bank TEXT,
                     zoom_patch INTEGER,
+                    zoom_bank_letter TEXT,
                     program INTEGER,
                     cc INTEGER,
                     value INTEGER,
@@ -351,15 +356,15 @@ class DatabaseManager:
             cursor.execute('''
                 INSERT INTO patches (
                     name, effects, input_device, input_channel, output_device, 
-                    command_type, zoom_bank, zoom_patch, program, cc, value, 
+                    command_type, zoom_bank, zoom_patch, zoom_bank_letter, program, cc, value, 
                     note, velocity, created_at, updated_at
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 patch.name, json.dumps(patch.effects), patch.input_device, 
                 patch.input_channel, patch.output_device, patch.command_type,
-                patch.zoom_bank, patch.zoom_patch, patch.program, patch.cc,
-                patch.value, patch.note, patch.velocity,
+                patch.zoom_bank, patch.zoom_patch, patch.zoom_bank_letter, patch.program,
+                patch.cc, patch.value, patch.note, patch.velocity,
                 patch.created_at, patch.updated_at
             ))
             conn.commit()
@@ -383,13 +388,14 @@ class DatabaseManager:
                     command_type=row[6],
                     zoom_bank=row[7],
                     zoom_patch=row[8],
-                    program=row[9],
-                    cc=row[10],
-                    value=row[11],
-                    note=row[12],
-                    velocity=row[13],
-                    created_at=row[14],
-                    updated_at=row[15]
+                    zoom_bank_letter=row[9],
+                    program=row[10],
+                    cc=row[11],
+                    value=row[12],
+                    note=row[13],
+                    velocity=row[14],
+                    created_at=row[15],
+                    updated_at=row[16]
                 )
             return None
     
@@ -412,13 +418,14 @@ class DatabaseManager:
                     command_type=row[6],
                     zoom_bank=row[7],
                     zoom_patch=row[8],
-                    program=row[9],
-                    cc=row[10],
-                    value=row[11],
-                    note=row[12],
-                    velocity=row[13],
-                    created_at=row[14],
-                    updated_at=row[15]
+                    zoom_bank_letter=row[9],
+                    program=row[10],
+                    cc=row[11],
+                    value=row[12],
+                    note=row[13],
+                    velocity=row[14],
+                    created_at=row[15],
+                    updated_at=row[16]
                 ))
             return patches
     
@@ -456,14 +463,14 @@ class DatabaseManager:
                     UPDATE patches 
                     SET name = ?, effects = ?, input_device = ?, input_channel = ?,
                         output_device = ?, command_type = ?, zoom_bank = ?, zoom_patch = ?,
-                        program = ?, cc = ?, value = ?, note = ?, velocity = ?, updated_at = ?
+                        zoom_bank_letter = ?, program = ?, cc = ?, value = ?, note = ?, velocity = ?, updated_at = ?
                     WHERE id = ?
                 ''', (
                     merged_patch.name, json.dumps(merged_patch.effects), merged_patch.input_device, 
                     merged_patch.input_channel, merged_patch.output_device, merged_patch.command_type,
-                    merged_patch.zoom_bank, merged_patch.zoom_patch, merged_patch.program, merged_patch.cc,
-                    merged_patch.value, merged_patch.note, merged_patch.velocity,
-                    datetime.now().isoformat(), merged_patch.id
+                    merged_patch.zoom_bank, merged_patch.zoom_patch, merged_patch.zoom_bank_letter,
+                    merged_patch.program, merged_patch.cc, merged_patch.value, merged_patch.note,
+                    merged_patch.velocity, datetime.now().isoformat(), merged_patch.id
                 ))
                 conn.commit()
                 logger.info(f"✅ [DB] Patch {merged_patch.id} atualizado com sucesso!")

@@ -1308,6 +1308,12 @@ class RaspMIDI {
     handleZoomBankChange(bankLetter) {
         if (!bankLetter) return;
         
+        // Define automaticamente a letra do banco
+        const bankLetterField = document.getElementById('patch-zoom-bank-letter');
+        if (bankLetterField) {
+            bankLetterField.value = bankLetter;
+        }
+        
         const patchSelect = document.getElementById('patch-zoom-patch');
         if (!patchSelect) return;
         
@@ -1479,7 +1485,19 @@ class RaspMIDI {
                 
                 if (zoomBank && zoomPatch) {
                     patchData.zoom_bank = zoomBank; // Salva como letra (A, B, C, etc.)
-                    patchData.zoom_patch = parseInt(zoomPatch);
+                    
+                    // Converte patch local para número sequencial global
+                    const globalPatchNumber = this.convertToGlobalPatchNumber(zoomBank, zoomPatch);
+                    patchData.zoom_patch = globalPatchNumber;
+                    
+                    // Adiciona a letra do banco
+                    const zoomBankLetter = formData.get('zoom_bank_letter');
+                    if (zoomBankLetter) {
+                        patchData.zoom_bank_letter = zoomBankLetter.toUpperCase();
+                    } else {
+                        // Se não foi preenchido, usa o valor do banco selecionado
+                        patchData.zoom_bank_letter = zoomBank;
+                    }
                     
                     // Define o tipo de comando baseado na configuração de efeitos
                     if (enableEffectsConfig) {
@@ -1493,7 +1511,7 @@ class RaspMIDI {
                     } else {
                         // Se não habilitada, é um comando de mudança de patch
                         patchData.command_type = 'pc';
-                        patchData.program = parseInt(zoomPatch);
+                        patchData.program = globalPatchNumber; // Usa o número global para MIDI
                         console.log("🎛️ Tipo de comando: Program Change (PC)");
                         
                         // Efeitos padrão (todos ligados) para mudança de patch
@@ -1511,6 +1529,7 @@ class RaspMIDI {
                     console.log("✅ Dados Zoom configurados:", {
                         zoom_bank: patchData.zoom_bank,
                         zoom_patch: patchData.zoom_patch,
+                        zoom_bank_letter: patchData.zoom_bank_letter,
                         command_type: patchData.command_type,
                         program: patchData.program
                     });
@@ -1737,6 +1756,11 @@ class RaspMIDI {
                     this.setFormValue('zoom_bank', patch.zoom_bank);
                     this.handleZoomBankChange(patch.zoom_bank);
                     
+                    // Preenche a letra do banco
+                    if (patch.zoom_bank_letter) {
+                        this.setFormValue('zoom_bank_letter', patch.zoom_bank_letter);
+                    }
+                    
                     // Carrega patches disponíveis incluindo o do patch atual
                     setTimeout(() => {
                         this.loadZoomPatchesForBank(patch.zoom_bank, patch.id).then(() => {
@@ -1902,6 +1926,15 @@ class RaspMIDI {
                 if (zoomBank && zoomPatch) {
                     patchData.zoom_bank = zoomBank; // Salva como letra (A, B, C, etc.)
                     patchData.zoom_patch = parseInt(zoomPatch);
+                    
+                    // Adiciona a letra do banco
+                    const zoomBankLetter = formData.get('zoom_bank_letter');
+                    if (zoomBankLetter) {
+                        patchData.zoom_bank_letter = zoomBankLetter.toUpperCase();
+                    } else {
+                        // Se não foi preenchido, usa o valor do banco selecionado
+                        patchData.zoom_bank_letter = zoomBank;
+                    }
                     
                     // Define o tipo de comando baseado na configuração de efeitos
                     if (enableEffectsConfig) {
@@ -3424,6 +3457,39 @@ class RaspMIDI {
             icon.classList.toggle('connected', connected);
             icon.classList.toggle('disconnected', !connected);
         }
+    }
+
+    // Função para converter banco e patch local para número sequencial global da Zoom G3X
+    convertToGlobalPatchNumber(bankLetter, localPatchNumber) {
+        // Mapeamento de letras para números de banco (A=0, B=1, C=2, etc.)
+        const bankMapping = {
+            'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4,
+            'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9
+        };
+        
+        const bankNumber = bankMapping[bankLetter.toUpperCase()] || 0;
+        const globalPatchNumber = (bankNumber * 10) + parseInt(localPatchNumber);
+        
+        console.log(`🔄 Conversão: Banco ${bankLetter} (${bankNumber}) + Patch ${localPatchNumber} = Global ${globalPatchNumber}`);
+        
+        return globalPatchNumber;
+    }
+    
+    // Função para converter número sequencial global para banco e patch local
+    convertFromGlobalPatchNumber(globalPatchNumber) {
+        const bankNumber = Math.floor(globalPatchNumber / 10);
+        const localPatchNumber = globalPatchNumber % 10;
+        
+        // Mapeamento de números para letras de banco (0=A, 1=B, 2=C, etc.)
+        const bankMapping = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const bankLetter = bankMapping[bankNumber] || 'A';
+        
+        console.log(`🔄 Conversão reversa: Global ${globalPatchNumber} = Banco ${bankLetter} + Patch ${localPatchNumber}`);
+        
+        return {
+            bankLetter: bankLetter,
+            localPatchNumber: localPatchNumber
+        };
     }
 }
 

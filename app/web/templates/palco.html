@@ -274,7 +274,7 @@
         .chocolate-leds {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 1rem;
         }
         
         .chocolate-led {
@@ -502,7 +502,9 @@
                         if (devicesData.success) {
                             const zoomDevice = devicesData.data.find(dev => dev.type === 'zoom_g3x');
                             if (zoomDevice) {
-                                updateZoomDisplay(activePatch.zoom_bank, activePatch.zoom_patch, zoomDevice.connected);
+                                // Usa zoom_bank_letter se disponível, senão zoom_bank
+                                const bankToShow = activePatch.zoom_bank_letter || activePatch.zoom_bank;
+                                updateZoomDisplay(bankToShow, activePatch.zoom_patch, zoomDevice.connected);
                             }
                         }
                     }
@@ -678,8 +680,12 @@
             if (display) {
                 let displayText = '---';
                 if (connected && bank !== '-' && patch !== '-') {
-                    // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
-                    const bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
+                    // Usa a letra do banco se disponível, senão converte o número
+                    let bankLetter = bank;
+                    if (typeof bank === 'number' || (typeof bank === 'string' && !isNaN(bank))) {
+                        // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
+                        bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
+                    }
                     displayText = `Banco ${bankLetter} - ${patch}`;
                 }
                 
@@ -786,10 +792,27 @@
                 const data = await response.json();
                 
                 if (data.success && data.data) {
+                    console.log(`📋 Total de patches encontrados: ${data.data.length}`);
+                    
+                    // Log de todos os patches do Chocolate para debug
+                    const allChocolatePatches = data.data.filter(patch => patch.input_device === 'Chocolate MIDI');
+                    console.log(`🎹 Patches do Chocolate encontrados: ${allChocolatePatches.length}`);
+                    
+                    allChocolatePatches.forEach((patch, index) => {
+                        console.log(`   Patch ${index + 1}:`, {
+                            name: patch.name,
+                            program: patch.program,
+                            input_channel: patch.input_channel,
+                            id: patch.id
+                        });
+                    });
+                    
                     const chocolatePatches = data.data.filter(patch => 
                         patch.input_device === 'Chocolate MIDI' && 
                         patch.program === program
                     );
+                    
+                    console.log(`🎯 Patches com program ${program}: ${chocolatePatches.length}`);
                     
                     if (chocolatePatches.length > 0) {
                         const patch = chocolatePatches[0];
@@ -807,12 +830,39 @@
                         await activatePatch(patch);
                     } else {
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
-                        // Mostra a mensagem no título
-                        document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
                         
-                        // Limpa o display da Zoom já que não há patch correspondente
-                        updateZoomDisplay('-', '-', false);
+                        // Tenta buscar por input_channel também
+                        const patchesByChannel = data.data.filter(patch => 
+                            patch.input_device === 'Chocolate MIDI' && 
+                            patch.input_channel === program
+                        );
+                        
+                        console.log(`🔍 Tentativa por input_channel ${program}: ${patchesByChannel.length} patches`);
+                        
+                        if (patchesByChannel.length > 0) {
+                            console.log(`✅ Patch encontrado por input_channel: ${patchesByChannel[0].name}`);
+                            const patch = patchesByChannel[0];
+                            
+                            // Restaura o nome do banco no título
+                            if (activeBank) {
+                                document.getElementById('bank-name').textContent = activeBank.name;
+                            }
+                            
+                            // PRIMEIRO: Envia comando para a Zoom G3X
+                            await sendPatchToZoom(patch);
+                            
+                            // DEPOIS: Ativa o patch no sistema
+                            await activatePatch(patch);
+                        } else {
+                            // Mostra a mensagem no título
+                            document.getElementById('bank-name').textContent = 'Não existe patch para este banco';
+                            
+                            // Limpa o display da Zoom já que não há patch correspondente
+                            updateZoomDisplay('-', '-', false);
+                        }
                     }
+                } else {
+                    console.log(`❌ Erro na resposta da API: ${data.success ? 'success=false' : 'data não encontrado'}`);
                 }
             } catch (error) {
                 console.error('Erro ao procurar patch por program:', error);
@@ -904,7 +954,9 @@
                         if (devicesData.success) {
                             const zoomDevice = devicesData.data.find(dev => dev.type === 'zoom_g3x');
                             if (zoomDevice) {
-                                updateZoomDisplay(patch.zoom_bank, patch.zoom_patch, zoomDevice.connected);
+                                // Usa zoom_bank_letter se disponível, senão zoom_bank
+                                const bankToShow = patch.zoom_bank_letter || patch.zoom_bank;
+                                updateZoomDisplay(bankToShow, patch.zoom_patch, zoomDevice.connected);
                             }
                         }
                     }
