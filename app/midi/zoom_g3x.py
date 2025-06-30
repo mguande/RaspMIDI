@@ -321,7 +321,9 @@ class ZoomG3XController:
 
     def _try_read_patch_name_documented(self, patch_number: int, bank_number: int) -> str:
         """Tenta ler o nome de um patch usando comandos SysEx documentados."""
-        default_name = f"Patch {patch_number}"
+        # Calcula o número local (0-9) para o nome padrão
+        local_patch_number = patch_number % 10
+        default_name = f"Patch {local_patch_number}"
         
         if not self.port:
             return default_name
@@ -430,7 +432,9 @@ class ZoomG3XController:
 
         # Se nenhum método funcionou, retorna nome padrão
         self.logger.debug(f"Nenhum método funcionou para patch {patch_number}, usando nome padrão")
-        return default_name
+        # Usa número local (0-9) para o nome padrão
+        local_patch_number = patch_number % 10
+        return f"Patch {local_patch_number}"
 
     def _extract_ascii_string(self, data: List[int]) -> str:
         """Extrai string ASCII válida dos dados SysEx"""

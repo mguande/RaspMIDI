@@ -1317,6 +1317,10 @@ class RaspMIDI {
         const patchSelect = document.getElementById('patch-zoom-patch');
         if (!patchSelect) return;
         
+        // Mostra loading no combo de patches
+        patchSelect.innerHTML = '<option value="">Carregando patches...</option>';
+        patchSelect.disabled = true;
+        
         // Carregar patches do banco selecionado
         this.loadZoomPatchesForBank(bankLetter);
     }
@@ -1356,6 +1360,9 @@ class RaspMIDI {
     // Carregar patches da Zoom para um banco específico
     async loadZoomPatchesForBank(bankLetter, excludePatchId = null) {
         try {
+            const patchSelect = document.getElementById('patch-zoom-patch');
+            if (!patchSelect) return;
+            
             // Primeiro, obtém os patches usados
             const usedPatchesResponse = await fetch(`${this.apiBase}/patches/used_zoom_patches`);
             const usedPatchesData = await usedPatchesResponse.json();
@@ -1380,9 +1387,9 @@ class RaspMIDI {
             // Depois, obtém os patches disponíveis para o banco
             const response = await fetch(`${this.apiBase}/midi/zoom/patches/${bankLetter}`);
             const data = await response.json();
-            const patchSelect = document.getElementById('patch-zoom-patch');
-            if (!patchSelect) return;
             
+            // Reabilita o combo e limpa
+            patchSelect.disabled = false;
             patchSelect.innerHTML = '<option value="">Selecione um patch...</option>';
             
             if (data.success && data.data) {
@@ -1412,6 +1419,12 @@ class RaspMIDI {
             }
         } catch (e) {
             console.error('Erro ao carregar patches da Zoom:', e);
+            // Em caso de erro, reabilita o combo
+            const patchSelect = document.getElementById('patch-zoom-patch');
+            if (patchSelect) {
+                patchSelect.disabled = false;
+                patchSelect.innerHTML = '<option value="">Erro ao carregar patches...</option>';
+            }
         }
     }
     
@@ -2336,7 +2349,7 @@ class RaspMIDI {
             select.appendChild(option);
         });
         
-        // Seleciona o dispositivo configurado por padrão
+        // Seleciona o dispositivo correto baseado na configuração
         if (this.midiConfig.output_device) {
             select.value = this.midiConfig.output_device;
         }
