@@ -418,7 +418,7 @@ def get_used_channels():
 
 @api_bp.route('/patches/used_zoom_patches', methods=['GET'])
 def get_used_zoom_patches():
-    """Retorna lista de patches da Zoom G3X já utilizados (banco + patch)"""
+    """Retorna lista de patches da Zoom G3X já utilizados (banco + patch local)"""
     try:
         cache_manager = current_app.cache_manager
         patches = cache_manager.get_patches()
@@ -428,14 +428,18 @@ def get_used_zoom_patches():
             if patch.get('zoom_bank') and patch.get('zoom_patch') is not None:
                 # Verifica se é um patch válido
                 try:
-                    patch_number = int(patch['zoom_patch'])
+                    global_patch_number = int(patch['zoom_patch'])
                     bank_letter = patch['zoom_bank']
-                    if 0 <= patch_number <= 99:  # Zoom G3X tem 100 patches (0-99)
-                        # Retorna combinação de banco + patch
+                    if 0 <= global_patch_number <= 99:  # Zoom G3X tem 100 patches (0-99)
+                        # Converte número global para local (0-9)
+                        local_patch_number = global_patch_number % 10
+                        
+                        # Retorna combinação de banco + patch local
                         used_patches.append({
                             'bank': bank_letter,
-                            'patch': patch_number,
-                            'combination': f"{bank_letter}{patch_number}"
+                            'patch': local_patch_number,  # Número local (0-9)
+                            'global_patch': global_patch_number,  # Número global (0-99)
+                            'combination': f"{bank_letter}{local_patch_number}"
                         })
                 except (ValueError, TypeError):
                     # Ignora valores que não são números válidos

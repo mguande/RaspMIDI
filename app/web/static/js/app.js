@@ -1360,49 +1360,53 @@ class RaspMIDI {
             const usedPatchesResponse = await fetch(`${this.apiBase}/patches/used_zoom_patches`);
             const usedPatchesData = await usedPatchesResponse.json();
             let usedPatches = usedPatchesData.success ? usedPatchesData.data : [];
+            
             // Filtra apenas os usados para o banco atual
-            usedPatches = usedPatches.filter(p => p.bank === bankLetter).map(p => p.patch);
+            const usedPatchesInBank = usedPatches.filter(p => p.bank === bankLetter).map(p => p.patch);
+            
             // Se estamos editando um patch, remove o patch do próprio patch da lista de usados
             if (excludePatchId) {
                 const currentPatch = this.patches.find(p => p.id === excludePatchId);
                 if (currentPatch && currentPatch.zoom_patch !== undefined && currentPatch.zoom_bank === bankLetter) {
-                    usedPatches = usedPatches.filter(patch => patch !== currentPatch.zoom_patch);
-                    console.log(`[Edição] Patch ${currentPatch.zoom_patch} do banco ${bankLetter} será incluído na lista`);
+                    // Converte o número global para local para comparação
+                    const localPatchNumber = this.convertFromGlobalPatchNumber(currentPatch.zoom_patch).patch;
+                    usedPatchesInBank.splice(usedPatchesInBank.indexOf(localPatchNumber), 1);
+                    console.log(`[Edição] Patch ${localPatchNumber} do banco ${bankLetter} será incluído na lista`);
                 }
             }
-            console.log(`[Novo Patch] Patches Zoom já utilizados no banco ${bankLetter}:`, usedPatches);
+            
+            console.log(`[Novo Patch] Patches Zoom já utilizados no banco ${bankLetter}:`, usedPatchesInBank);
+            
             // Depois, obtém os patches disponíveis para o banco
             const response = await fetch(`${this.apiBase}/midi/zoom/patches/${bankLetter}`);
             const data = await response.json();
             const patchSelect = document.getElementById('patch-zoom-patch');
             if (!patchSelect) return;
+            
             patchSelect.innerHTML = '<option value="">Selecione um patch...</option>';
+            
             if (data.success && data.data) {
                 // Se conseguimos importar os nomes da Zoom
                 data.data.forEach((patch, index) => {
                     const patchNumber = parseInt(patch.number) || 0;
                     const patchName = patch.name || `Patch ${patchNumber}`;
-                    // Verifica se o patch já está sendo usado neste banco
-                    if (!usedPatches.includes(patchNumber)) {
-                        patchSelect.innerHTML += `<option value="${patchNumber}">${patchName}</option>`;
+                    
+                    // Verifica se o patch já está sendo usado neste banco (usando número local 0-9)
+                    const localPatchNumber = patchNumber % 10; // Converte para número local (0-9)
+                    if (!usedPatchesInBank.includes(localPatchNumber)) {
+                        patchSelect.innerHTML += `<option value="${localPatchNumber}">${patchName}</option>`;
                     } else {
-                        console.log(`[Novo Patch] Patch ${patchNumber} (${patchName}) já está em uso no banco ${bankLetter}`);
+                        console.log(`[Novo Patch] Patch ${localPatchNumber} (${patchName}) já está em uso no banco ${bankLetter}`);
                     }
                 });
             } else {
-                // Fallback: patches padrão
-                const bankMapping = {
-                    'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4,
-                    'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9
-                };
-                const bankNumber = bankMapping[bankLetter] || 0;
+                // Fallback: patches padrão de 0 a 9 para cada banco
                 for (let i = 0; i < 10; i++) {
-                    const patchNumber = bankNumber * 10 + i;
                     // Verifica se o patch já está sendo usado neste banco
-                    if (!usedPatches.includes(patchNumber)) {
-                        patchSelect.innerHTML += `<option value="${patchNumber}">Patch ${patchNumber}</option>`;
+                    if (!usedPatchesInBank.includes(i)) {
+                        patchSelect.innerHTML += `<option value="${i}">Patch ${i}</option>`;
                     } else {
-                        console.log(`[Novo Patch] Patch ${patchNumber} já está em uso no banco ${bankLetter}`);
+                        console.log(`[Novo Patch] Patch ${i} já está em uso no banco ${bankLetter}`);
                     }
                 }
             }
@@ -3463,7 +3467,7 @@ class RaspMIDI {
         
         return {
             bankLetter: bankLetter,
-            localPatchNumber: localPatchNumber
+            patch: localPatchNumber  // Mudança aqui: patch em vez de localPatchNumber
         };
     }
 }
