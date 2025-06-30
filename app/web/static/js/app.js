@@ -755,6 +755,7 @@ class RaspMIDI {
                         <i class="fas fa-trash"></i>
                         Deletar
                     </button>
+                    <button class="btn btn-info btn-small" title="Carregar Patch" onclick="app.activatePatch(${patch.id})"><i class="fas fa-play"></i></button>
                 </div>
             </div>
         `;
@@ -3465,8 +3466,43 @@ class RaspMIDI {
                 this.renderPatches();
             });
         }
-        // Padrão: cards
-        this._patchViewMode = 'cards';
+    }
+
+    // Cria uma linha para visualização em lista
+    createPatchListRow(patch) {
+        return `<tr style="background:#23283a;border-bottom:1px solid #333;">
+            <td style="color:#ffb300;font-weight:600;">${patch.name || ''}</td>
+            <td>${patch.input_channel ?? ''}</td>
+            <td>${patch.input_device || ''}</td>
+            <td>${patch.zoom_bank ? patch.zoom_bank + (patch.zoom_patch !== undefined ? ' ' + (patch.zoom_patch % 10) : '') : ''}</td>
+            <td>${patch.output_device || ''}</td>
+            <td>
+                <button class="btn btn-info btn-small" title="Carregar Patch" onclick="app.activatePatch(${patch.id})"><i class="fas fa-play"></i></button>
+                <button class="btn btn-primary btn-small" onclick="app.editPatch(${patch.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-danger btn-small" onclick="app.deletePatch(${patch.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
+    }
+
+    // Ativar patch na Zoom G3X ao clicar no botão
+    async activatePatch(patchId) {
+        try {
+            const patch = this.patches.find(p => p.id === patchId);
+            if (!patch) {
+                this.showNotification('Patch não encontrado.', 'error');
+                return;
+            }
+            // Chama API para ativar patch
+            const response = await fetch(`${this.apiBase}/patches/${patchId}/activate`, { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                this.showNotification('Patch ativado na Zoom G3X!', 'success');
+            } else {
+                this.showNotification('Erro ao ativar patch: ' + (data.error || 'Erro desconhecido'), 'error');
+            }
+        } catch (e) {
+            this.showNotification('Erro ao ativar patch: ' + e.message, 'error');
+        }
     }
 }
 

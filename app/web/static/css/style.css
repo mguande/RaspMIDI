@@ -32,6 +32,75 @@ body {
     padding: 20px;
 }
 
+/* Melhor contraste para dark mode */
+body, .container, .content-section, .modal-content, .modal-header, .modal-footer {
+    background: #181c24 !important;
+    color: #f2f2f2 !important;
+}
+
+.card, .patch-card, .patch-list-table, .form-input, .form-textarea, select, .modal-content {
+    background: #23283a !important;
+    color: #f2f2f2 !important;
+    border: 1.5px solid #333 !important;
+}
+
+.card-title, .modal-title, .patch-name, .form-label, .patch-list-table th {
+    color: #ffb300 !important;
+}
+
+.form-label, label, .patch-list-table th {
+    font-weight: 600;
+    color: #ffb300 !important;
+}
+
+.form-input, .form-textarea, select {
+    background: #23283a !important;
+    color: #fff !important;
+    border: 1px solid #444 !important;
+}
+
+.form-input:focus, .form-textarea:focus, select:focus {
+    outline: none;
+    border-color: #2d8cff;
+    box-shadow: 0 0 5px rgba(45, 140, 255, 0.3);
+}
+
+.btn, .btn-primary, .btn-secondary, .btn-info, .btn-success, .btn-danger {
+    color: #fff !important;
+    font-weight: 600;
+}
+
+.btn-primary {
+    background: #2d8cff !important;
+}
+.btn-primary:hover {
+    background: #1a5fb4 !important;
+}
+.btn-secondary {
+    background: #444a5a !important;
+}
+.btn-secondary:hover {
+    background: #2d8cff !important;
+}
+.btn-info {
+    background: #17a2b8 !important;
+}
+.btn-info:hover {
+    background: #138496 !important;
+}
+.btn-success {
+    background: #27ae60 !important;
+}
+.btn-success:hover {
+    background: #229954 !important;
+}
+.btn-danger {
+    background: #e74c3c !important;
+}
+.btn-danger:hover {
+    background: #c0392b !important;
+}
+
 /* Header */
 .header {
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
@@ -1562,4 +1631,43 @@ body {
 }
 .patch-list-table tr:hover {
     background: #23283a;
+}
+
+/* Lista dark */
+.patch-list-table {
+    background: #23283a !important;
+    color: #fff !important;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    font-size: 1rem;
+}
+.patch-list-table th, .patch-list-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #333;
+    text-align: left;
+}
+.patch-list-table th {
+    background: #23283a !important;
+    color: #ffb300 !important;
+    font-weight: 700;
+}
+.patch-list-table tr:last-child td {
+    border-bottom: none;
+}
+.patch-list-table tr:hover {
+    background: #2d8cff22 !important;
+}
+
+/* Ajuste para botões de visualização */
+.section-viewmode {
+    margin-bottom: 0.5rem;
+}
+
+/* Ajuste para combo de ordenação pequeno */
+#patch-sort-mode {
+    min-width: 120px;
+    max-width: 160px;
+    font-size: 0.95rem;
+    padding: 6px 8px;
 } 

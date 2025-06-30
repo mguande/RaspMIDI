@@ -393,18 +393,20 @@
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">🎛️ Patches</h2>
-                            <div class="section-actions" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <div class="section-actions" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <button class="btn btn-primary" onclick="app.showNewPatchModal()">
                                     <i class="fas fa-plus"></i> Novo Patch
                                 </button>
                                 <button class="btn btn-secondary" onclick="app.refreshZoomPatches()">
                                     <i class="fas fa-sync-alt"></i> Atualizar Patches Zoom
                                 </button>
-                                <select id="patch-sort-mode" class="form-input" style="min-width: 180px;">
-                                    <option value="input">Ordenar por Canal de Entrada</option>
-                                    <option value="output">Ordenar por Banco/Patch de Saída</option>
-                                    <option value="created">Ordenar por Data de Criação</option>
+                                <select id="patch-sort-mode" class="form-input" style="min-width: 120px; max-width: 160px; font-size: 0.95rem; padding: 6px 8px;">
+                                    <option value="input">Canal Entrada</option>
+                                    <option value="output">Banco/Patch Saída</option>
+                                    <option value="created">Data Criação</option>
                                 </select>
+                            </div>
+                            <div class="section-viewmode" style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
                                 <button id="view-cards" class="btn btn-secondary btn-small" title="Visualizar em Cards" style="padding: 7px 10px;"><i class="fas fa-th-large"></i></button>
                                 <button id="view-list" class="btn btn-secondary btn-small" title="Visualizar em Lista" style="padding: 7px 10px;"><i class="fas fa-list"></i></button>
                             </div>
