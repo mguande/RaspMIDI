@@ -3267,7 +3267,7 @@ class RaspMIDI {
             // Recarrega a lista de patches se estiver no modal
             const zoomBankSelect = document.getElementById('patch-zoom-bank');
             if (zoomBankSelect && zoomBankSelect.value) {
-                await this.loadZoomPatchesForBank(parseInt(zoomBankSelect.value));
+                await this.loadZoomPatchesForBank(zoomBankSelect.value);
                 this.showNotification('Lista de patches atualizada!', 'success');
             }
             

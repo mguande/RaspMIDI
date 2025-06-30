@@ -1060,10 +1060,10 @@ def get_zoom_patches(bank_letter):
         default_patches = []
         
         for i in range(10):
-            patch_number = bank_number * 10 + i
+            # Retorna números locais (0-9) em vez de globais
             default_patches.append({
-                'number': patch_number,
-                'name': f"Patch {patch_number}",
+                'number': i,  # Número local (0-9)
+                'name': f"Patch {i}",
                 'bank': bank_letter
             })
         

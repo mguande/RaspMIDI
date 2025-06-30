@@ -298,14 +298,16 @@ class ZoomG3XController:
             self.logger.info(f"Tentando ler patches do banco {bank_number} da Zoom G3X...")
 
             for i in range(10):
-                patch_number = bank_number * 10 + i
-                patch_name = f"Patch {patch_number}"
+                # Usa número local (0-9) em vez de global
+                patch_number_local = i
+                patch_number_global = bank_number * 10 + i
+                patch_name = f"Patch {patch_number_local}"
 
                 # Tenta diferentes métodos para ler o nome do patch
-                patch_name = self._try_read_patch_name_documented(patch_number, bank_number)
+                patch_name = self._try_read_patch_name_documented(patch_number_global, bank_number)
 
                 patches.append({
-                    'number': patch_number,
+                    'number': patch_number_local,  # Número local (0-9)
                     'name': patch_name,
                     'bank': bank_number
                 })
