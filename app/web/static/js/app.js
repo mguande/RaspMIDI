@@ -1490,14 +1490,8 @@ class RaspMIDI {
                     const globalPatchNumber = this.convertToGlobalPatchNumber(zoomBank, zoomPatch);
                     patchData.zoom_patch = globalPatchNumber;
                     
-                    // Adiciona a letra do banco
-                    const zoomBankLetter = formData.get('zoom_bank_letter');
-                    if (zoomBankLetter) {
-                        patchData.zoom_bank_letter = zoomBankLetter.toUpperCase();
-                    } else {
-                        // Se não foi preenchido, usa o valor do banco selecionado
-                        patchData.zoom_bank_letter = zoomBank;
-                    }
+                    // Sempre usa o valor do combo de banco
+                    patchData.zoom_bank_letter = zoomBank;
                     
                     // Define o tipo de comando baseado na configuração de efeitos
                     if (enableEffectsConfig) {
@@ -1755,11 +1749,6 @@ class RaspMIDI {
                 if (patch.zoom_bank) {
                     this.setFormValue('zoom_bank', patch.zoom_bank);
                     this.handleZoomBankChange(patch.zoom_bank);
-                    
-                    // Preenche a letra do banco
-                    if (patch.zoom_bank_letter) {
-                        this.setFormValue('zoom_bank_letter', patch.zoom_bank_letter);
-                    }
                     
                     // Carrega patches disponíveis incluindo o do patch atual
                     setTimeout(() => {

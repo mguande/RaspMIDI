@@ -15,7 +15,7 @@ class Patch:
     def __init__(self, id: Optional[int] = None, name: str = "", effects: Optional[Dict] = None, 
                  input_device: str = "", input_channel: Optional[int] = None,
                  output_device: str = "", command_type: str = "",
-                 zoom_bank: Optional[int] = None, zoom_patch: Optional[int] = None,
+                 zoom_bank: Optional[str] = None, zoom_patch: Optional[int] = None,
                  zoom_bank_letter: Optional[str] = None, program: Optional[int] = None, 
                  cc: Optional[int] = None, value: Optional[int] = None,
                  note: Optional[int] = None, velocity: Optional[int] = None,
@@ -359,7 +359,7 @@ class DatabaseManager:
                     command_type, zoom_bank, zoom_patch, zoom_bank_letter, program, cc, value, 
                     note, velocity, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 patch.name, json.dumps(patch.effects), patch.input_device, 
                 patch.input_channel, patch.output_device, patch.command_type,
