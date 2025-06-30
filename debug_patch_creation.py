@@ -10,7 +10,7 @@ import json
 def debug_patch_creation():
     """Debug da criação de patch"""
     
-    base_url = "http://localhost:5000"
+    base_url = "http://192.168.15.8:5000"
     
     print("🐛 Debug da criação de patch...")
     

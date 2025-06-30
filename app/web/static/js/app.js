@@ -1360,7 +1360,8 @@ class RaspMIDI {
             const usedPatchesResponse = await fetch(`${this.apiBase}/patches/used_zoom_patches`);
             const usedPatchesData = await usedPatchesResponse.json();
             let usedPatches = usedPatchesData.success ? usedPatchesData.data : [];
-            
+            // Filtra apenas os usados para o banco atual
+            usedPatches = usedPatches.filter(p => p.bank === bankLetter).map(p => p.patch);
             // Se estamos editando um patch, remove o patch do próprio patch da lista de usados
             if (excludePatchId) {
                 const currentPatch = this.patches.find(p => p.id === excludePatchId);
@@ -1369,8 +1370,7 @@ class RaspMIDI {
                     console.log(`[Edição] Patch ${currentPatch.zoom_patch} do banco ${bankLetter} será incluído na lista`);
                 }
             }
-            
-            console.log(`[Novo Patch] Patches Zoom já utilizados:`, usedPatches);
+            console.log(`[Novo Patch] Patches Zoom já utilizados no banco ${bankLetter}:`, usedPatches);
             // Depois, obtém os patches disponíveis para o banco
             const response = await fetch(`${this.apiBase}/midi/zoom/patches/${bankLetter}`);
             const data = await response.json();
@@ -1382,11 +1382,11 @@ class RaspMIDI {
                 data.data.forEach((patch, index) => {
                     const patchNumber = parseInt(patch.number) || 0;
                     const patchName = patch.name || `Patch ${patchNumber}`;
-                    // Verifica se o patch já está sendo usado
+                    // Verifica se o patch já está sendo usado neste banco
                     if (!usedPatches.includes(patchNumber)) {
                         patchSelect.innerHTML += `<option value="${patchNumber}">${patchName}</option>`;
                     } else {
-                        console.log(`[Novo Patch] Patch ${patchNumber} (${patchName}) já está em uso`);
+                        console.log(`[Novo Patch] Patch ${patchNumber} (${patchName}) já está em uso no banco ${bankLetter}`);
                     }
                 });
             } else {
@@ -1398,30 +1398,16 @@ class RaspMIDI {
                 const bankNumber = bankMapping[bankLetter] || 0;
                 for (let i = 0; i < 10; i++) {
                     const patchNumber = bankNumber * 10 + i;
-                    // Verifica se o patch já está sendo usado
+                    // Verifica se o patch já está sendo usado neste banco
                     if (!usedPatches.includes(patchNumber)) {
                         patchSelect.innerHTML += `<option value="${patchNumber}">Patch ${patchNumber}</option>`;
                     } else {
-                        console.log(`[Novo Patch] Patch ${patchNumber} já está em uso`);
+                        console.log(`[Novo Patch] Patch ${patchNumber} já está em uso no banco ${bankLetter}`);
                     }
                 }
             }
-        } catch (error) {
-            console.error('Erro ao carregar patches da Zoom:', error);
-            // Fallback: patches padrão
-            const patchSelect = document.getElementById('patch-zoom-patch');
-            if (patchSelect) {
-                patchSelect.innerHTML = '<option value="">Selecione um patch...</option>';
-                const bankMapping = {
-                    'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4,
-                    'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9
-                };
-                const bankNumber = bankMapping[bankLetter] || 0;
-                for (let i = 0; i < 10; i++) {
-                    const patchNumber = bankNumber * 10 + i;
-                    patchSelect.innerHTML += `<option value="${patchNumber}">Patch ${patchNumber}</option>`;
-                }
-            }
+        } catch (e) {
+            console.error('Erro ao carregar patches da Zoom:', e);
         }
     }
     
