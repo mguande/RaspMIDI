@@ -1,146 +1,132 @@
 #!/usr/bin/env python3
 """
-Script para deploy automático no Raspberry Pi
+Script de deploy para Raspberry Pi
 """
 
 import os
 import subprocess
 import sys
 import time
-import shutil
 
-# Configurações do Raspberry Pi
+# Configuração
 RASPBERRY_IP = "192.168.15.8"
 RASPBERRY_USER = "matheus"
-RASPBERRY_PASSWORD = "matheus"
-RASPBERRY_PATH = f"/home/{RASPBERRY_USER}/RaspMIDI"
+RASPBERRY_PASS = "raspberry"
+PROJECT_DIR = "/home/matheus/RaspMIDI"
 
-def check_sshpass():
-    """Verifica se sshpass está disponível"""
-    return shutil.which('sshpass') is not None
-
-def run_ssh_command(command, use_password=True):
-    """Executa comando SSH no Raspberry Pi"""
-    if use_password and check_sshpass():
-        # Usa sshpass para automatizar a senha
-        ssh_cmd = f'sshpass -p "{RASPBERRY_PASSWORD}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "{command}"'
-    else:
-        # Usa SSH normal (pedirá senha manualmente)
-        ssh_cmd = f'ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "{command}"'
+def run_command(command, description):
+    """Executa um comando e mostra o resultado"""
+    print(f"\n🔧 {description}")
+    print(f"📝 Comando: {command}")
     
     try:
-        result = subprocess.run(ssh_cmd, shell=True, capture_output=True, text=True)
-        return result.returncode == 0, result.stdout, result.stderr
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        
+        if result.stdout:
+            print("✅ Saída:")
+            print(result.stdout)
+        
+        if result.stderr:
+            print("⚠️ Erros:")
+            print(result.stderr)
+        
+        if result.returncode != 0:
+            print(f"❌ Comando falhou com código {result.returncode}")
+            return False
+        
+        return True
+        
     except Exception as e:
-        return False, "", str(e)
+        print(f"❌ Erro ao executar comando: {e}")
+        return False
 
-def run_scp_command(local_file, remote_path, use_password=True):
-    """Copia arquivo para o Raspberry Pi"""
-    if use_password and check_sshpass():
-        scp_cmd = f'sshpass -p "{RASPBERRY_PASSWORD}" scp -o StrictHostKeyChecking=no "{local_file}" {RASPBERRY_USER}@{RASPBERRY_IP}:{remote_path}'
-    else:
-        scp_cmd = f'scp -o StrictHostKeyChecking=no "{local_file}" {RASPBERRY_USER}@{RASPBERRY_IP}:{remote_path}'
-    
-    try:
-        result = subprocess.run(scp_cmd, shell=True, capture_output=True, text=True)
-        return result.returncode == 0, result.stdout, result.stderr
-    except Exception as e:
-        return False, "", str(e)
-
-def deploy_file(local_file, remote_path):
-    """Deploy de um arquivo específico"""
-    print(f"📁 Deployando {local_file}...")
-    success, stdout, stderr = run_scp_command(local_file, remote_path)
-    
-    if success:
-        print(f"✅ {local_file} deployado com sucesso")
-    else:
-        print(f"❌ Erro ao deployar {local_file}: {stderr}")
-    
-    return success
-
-def restart_application():
-    """Reinicia a aplicação no Raspberry Pi"""
-    print("🔄 Reiniciando aplicação...")
-    
-    # Para o processo atual
-    success, stdout, stderr = run_ssh_command("pkill -f 'python run.py'")
-    if success:
-        print("✅ Processo anterior finalizado")
-    
-    # Aguarda um pouco
-    time.sleep(2)
-    
-    # Inicia a aplicação
-    start_cmd = f"cd {RASPBERRY_PATH} && source venv/bin/activate && nohup python run.py > logs/app.log 2>&1 &"
-    success, stdout, stderr = run_ssh_command(start_cmd)
-    
-    if success:
-        print("✅ Aplicação reiniciada com sucesso")
-        print(f"🌐 Acesse: http://{RASPBERRY_IP}:5000")
-    else:
-        print(f"❌ Erro ao reiniciar aplicação: {stderr}")
-    
-    return success
-
-def check_application_status():
-    """Verifica o status da aplicação"""
-    print("🔍 Verificando status da aplicação...")
-    
-    success, stdout, stderr = run_ssh_command("ps aux | grep 'python run.py' | grep -v grep")
-    
-    if success and stdout.strip():
-        print("✅ Aplicação está rodando")
-        print("📋 Processos:")
-        print(stdout)
-    else:
-        print("❌ Aplicação não está rodando")
-    
-    return success
-
-def main():
-    """Função principal"""
-    print("🚀 Deploy automático para Raspberry Pi")
+def deploy():
+    """Executa o deploy completo"""
+    print("🚀 Iniciando deploy para Raspberry Pi...")
     print(f"📍 IP: {RASPBERRY_IP}")
     print(f"👤 Usuário: {RASPBERRY_USER}")
-    print()
+    print(f"📁 Diretório: {PROJECT_DIR}")
     
-    # Verifica se sshpass está disponível
-    if check_sshpass():
-        print("✅ sshpass encontrado - deploy automático")
-        use_password = True
+    # 1. Para o serviço
+    print("\n" + "="*50)
+    print("🛑 PARANDO SERVIÇO")
+    print("="*50)
+    
+    stop_cmd = f'sshpass -p "{RASPBERRY_PASS}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "sudo systemctl stop raspmidi.service"'
+    if not run_command(stop_cmd, "Parando serviço raspmidi"):
+        print("⚠️ Aviso: Não foi possível parar o serviço")
+    
+    # 2. Atualiza o código
+    print("\n" + "="*50)
+    print("📥 ATUALIZANDO CÓDIGO")
+    print("="*50)
+    
+    update_cmd = f'sshpass -p "{RASPBERRY_PASS}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "cd {PROJECT_DIR} && git pull origin main"'
+    if not run_command(update_cmd, "Atualizando código via git"):
+        print("❌ Falha ao atualizar código")
+        return False
+    
+    # 3. Instala dependências
+    print("\n" + "="*50)
+    print("📦 INSTALANDO DEPENDÊNCIAS")
+    print("="*50)
+    
+    deps_cmd = f'sshpass -p "{RASPBERRY_PASS}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "cd {PROJECT_DIR} && source venv/bin/activate && pip install -r requirements.txt"'
+    if not run_command(deps_cmd, "Instalando dependências Python"):
+        print("❌ Falha ao instalar dependências")
+        return False
+    
+    # 4. Reinicia o serviço
+    print("\n" + "="*50)
+    print("🔄 REINICIANDO SERVIÇO")
+    print("="*50)
+    
+    start_cmd = f'sshpass -p "{RASPBERRY_PASS}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "sudo systemctl start raspmidi.service"'
+    if not run_command(start_cmd, "Reiniciando serviço raspmidi"):
+        print("❌ Falha ao reiniciar serviço")
+        return False
+    
+    # 5. Verifica status
+    print("\n" + "="*50)
+    print("✅ VERIFICANDO STATUS")
+    print("="*50)
+    
+    status_cmd = f'sshpass -p "{RASPBERRY_PASS}" ssh -o StrictHostKeyChecking=no {RASPBERRY_USER}@{RASPBERRY_IP} "sudo systemctl status raspmidi.service"'
+    run_command(status_cmd, "Verificando status do serviço")
+    
+    # 6. Testa conectividade
+    print("\n" + "="*50)
+    print("🌐 TESTANDO CONECTIVIDADE")
+    print("="*50)
+    
+    print("⏳ Aguardando 5 segundos para o serviço inicializar...")
+    time.sleep(5)
+    
+    test_cmd = f'curl -s http://{RASPBERRY_IP}:5000/api/status'
+    if run_command(test_cmd, "Testando API"):
+        print("✅ API está respondendo!")
     else:
-        print("⚠️ sshpass não encontrado - você precisará digitar a senha manualmente")
-        use_password = False
+        print("❌ API não está respondendo")
     
-    # Deploy dos arquivos principais
-    files_to_deploy = [
-        ("app/web/static/js/app.js", f"{RASPBERRY_PATH}/app/web/static/js/"),
-        ("app/main.py", f"{RASPBERRY_PATH}/app/"),
-        ("run.py", f"{RASPBERRY_PATH}/"),
-    ]
+    print("\n" + "="*50)
+    print("🎉 DEPLOY CONCLUÍDO!")
+    print("="*50)
+    print(f"🌐 Acesse: http://{RASPBERRY_IP}:5000")
     
-    all_success = True
-    for local_file, remote_path in files_to_deploy:
-        if os.path.exists(local_file):
-            if not deploy_file(local_file, remote_path):
-                all_success = False
-        else:
-            print(f"⚠️ Arquivo não encontrado: {local_file}")
-    
-    if all_success:
-        # Reinicia a aplicação
-        restart_application()
-        
-        # Aguarda um pouco e verifica o status
-        time.sleep(3)
-        check_application_status()
-        
-        print("\n🎉 Deploy concluído!")
-    else:
-        print("\n❌ Deploy falhou!")
-    
-    return all_success
+    return True
 
 if __name__ == "__main__":
-    main() 
+    try:
+        success = deploy()
+        if success:
+            print("\n✅ Deploy realizado com sucesso!")
+            sys.exit(0)
+        else:
+            print("\n❌ Deploy falhou!")
+            sys.exit(1)
+    except KeyboardInterrupt:
+        print("\n⚠️ Deploy interrompido pelo usuário")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n❌ Erro inesperado: {e}")
+        sys.exit(1) 

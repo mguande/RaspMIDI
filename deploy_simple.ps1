@@ -1,39 +1,54 @@
-# Script de Deploy Simples para Raspberry Pi
+# Script de deploy simples para Raspberry Pi
+# Configuração
 $RASPBERRY_IP = "192.168.15.8"
 $RASPBERRY_USER = "matheus"
-$RASPBERRY_PASSWORD = "matheus"
+$PROJECT_DIR = "/home/matheus/RaspMIDI"
 
-Write-Host "🚀 Deploy automático para Raspberry Pi" -ForegroundColor Green
-
-# Deploy do arquivo JavaScript
-Write-Host "📁 Deployando app.js..." -ForegroundColor Yellow
-$scpCmd = "scp -o StrictHostKeyChecking=no app/web/static/js/app.js ${RASPBERRY_USER}@${RASPBERRY_IP}:/home/${RASPBERRY_USER}/RaspMIDI/app/web/static/js/"
-echo $RASPBERRY_PASSWORD | & $scpCmd
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ app.js deployado com sucesso" -ForegroundColor Green
-} else {
-    Write-Host "❌ Erro ao deployar app.js" -ForegroundColor Red
+function Write-Status {
+    param([string]$Message, [string]$Type = "INFO")
+    $timestamp = Get-Date -Format "HH:mm:ss"
+    switch ($Type) {
+        "SUCCESS" { Write-Host "[$timestamp] ✅ $Message" -ForegroundColor Green }
+        "ERROR" { Write-Host "[$timestamp] ❌ $Message" -ForegroundColor Red }
+        "WARNING" { Write-Host "[$timestamp] ⚠️ $Message" -ForegroundColor Yellow }
+        default { Write-Host "[$timestamp] ℹ️ $Message" -ForegroundColor Cyan }
+    }
 }
 
-# Reinicia a aplicação
-Write-Host "🔄 Reiniciando aplicação..." -ForegroundColor Yellow
-
-# Para o processo atual
-$sshCmd = "ssh -o StrictHostKeyChecking=no ${RASPBERRY_USER}@${RASPBERRY_IP} 'pkill -f \"python run.py\"'"
-echo $RASPBERRY_PASSWORD | & $sshCmd
-
-Start-Sleep -Seconds 2
-
-# Inicia a aplicação
-$startCmd = "ssh -o StrictHostKeyChecking=no ${RASPBERRY_USER}@${RASPBERRY_IP} 'cd /home/${RASPBERRY_USER}/RaspMIDI && source venv/bin/activate && nohup python run.py > logs/app.log 2>&1 &'"
-echo $RASPBERRY_PASSWORD | & $startCmd
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✅ Aplicação reiniciada com sucesso" -ForegroundColor Green
-    Write-Host "🌐 Acesse: http://${RASPBERRY_IP}:5000" -ForegroundColor Cyan
-} else {
-    Write-Host "❌ Erro ao reiniciar aplicação" -ForegroundColor Red
+function Deploy-RaspberryPi {
+    Write-Host "🚀 Iniciando deploy para Raspberry Pi..." -ForegroundColor Magenta
+    Write-Host "📍 IP: $RASPBERRY_IP" -ForegroundColor White
+    Write-Host "👤 Usuário: $RASPBERRY_USER" -ForegroundColor White
+    Write-Host "📁 Diretório: $PROJECT_DIR" -ForegroundColor White
+    
+    Write-Host "`n" + "="*50 -ForegroundColor Gray
+    Write-Host "📋 COMANDOS PARA EXECUTAR MANUALMENTE" -ForegroundColor Yellow
+    Write-Host "="*50 -ForegroundColor Gray
+    
+    Write-Host "`n1️⃣ Parar o serviço:" -ForegroundColor Cyan
+    Write-Host "ssh $RASPBERRY_USER@$RASPBERRY_IP 'sudo systemctl stop raspmidi.service'" -ForegroundColor White
+    
+    Write-Host "`n2️⃣ Atualizar código:" -ForegroundColor Cyan
+    Write-Host "ssh $RASPBERRY_USER@$RASPBERRY_IP 'cd $PROJECT_DIR && git pull origin main'" -ForegroundColor White
+    
+    Write-Host "`n3️⃣ Instalar dependências:" -ForegroundColor Cyan
+    Write-Host "ssh $RASPBERRY_USER@$RASPBERRY_IP 'cd $PROJECT_DIR && source venv/bin/activate && pip install -r requirements.txt'" -ForegroundColor White
+    
+    Write-Host "`n4️⃣ Reiniciar serviço:" -ForegroundColor Cyan
+    Write-Host "ssh $RASPBERRY_USER@$RASPBERRY_IP 'sudo systemctl start raspmidi.service'" -ForegroundColor White
+    
+    Write-Host "`n5️⃣ Verificar status:" -ForegroundColor Cyan
+    Write-Host "ssh $RASPBERRY_USER@$RASPBERRY_IP 'sudo systemctl status raspmidi.service'" -ForegroundColor White
+    
+    Write-Host "`n6️⃣ Testar API:" -ForegroundColor Cyan
+    Write-Host "curl http://$RASPBERRY_IP`:5000/api/status" -ForegroundColor White
+    
+    Write-Host "`n" + "="*50 -ForegroundColor Gray
+    Write-Host "🌐 Acesse: http://$RASPBERRY_IP`:5000" -ForegroundColor Cyan
+    Write-Host "="*50 -ForegroundColor Gray
+    
+    Write-Host "`n💡 Dica: Execute os comandos um por vez no terminal" -ForegroundColor Yellow
 }
 
-Write-Host "🎉 Deploy concluído!" -ForegroundColor Green 
+# Executa o script
+Deploy-RaspberryPi 

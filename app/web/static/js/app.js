@@ -1744,14 +1744,20 @@ class RaspMIDI {
                     setTimeout(() => {
                         this.loadZoomPatchesForBank(patch.zoom_bank, patch.id).then(() => {
                             if (patch.zoom_patch !== undefined) {
-                                this.setFormValue('zoom_patch', patch.zoom_patch.toString());
+                                // Converte número global para local para exibição no combo
+                                const localPatchNumber = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+                                this.setFormValue('zoom_patch', localPatchNumber.toString());
+                                console.log(`[Edição] Patch global ${patch.zoom_patch} convertido para local ${localPatchNumber}`);
                             }
                         });
                     }, 500);
                 } else if (patch.zoom_patch !== undefined) {
                     // fallback para garantir seleção
                     setTimeout(() => {
-                        this.setFormValue('zoom_patch', patch.zoom_patch.toString());
+                        // Converte número global para local para exibição no combo
+                        const localPatchNumber = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+                        this.setFormValue('zoom_patch', localPatchNumber.toString());
+                        console.log(`[Edição] Patch global ${patch.zoom_patch} convertido para local ${localPatchNumber} (fallback)`);
                     }, 1000);
                 }
                 
