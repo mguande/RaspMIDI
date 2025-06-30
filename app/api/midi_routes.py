@@ -576,6 +576,51 @@ def get_midi_monitoring_status():
             'error': str(e)
         }), 500
 
+@midi_bp.route('/sysex', methods=['POST'])
+def send_sysex_command():
+    """Envia comando SysEx para o dispositivo de saída"""
+    try:
+        data = request.get_json()
+        if not data or 'data' not in data:
+            return jsonify({'success': False, 'error': 'Dados SysEx são obrigatórios'}), 400
+        hex_str = data['data']
+        # Converte string hex para lista de ints
+        try:
+            sysex_bytes = [int(b, 16) for b in hex_str.replace(',', ' ').replace(';', ' ').split()]
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Erro ao converter hex: {e}'}), 400
+        input_channel = data.get('input_channel', 0)
+        output_channel = data.get('output_channel', 0)
+        midi_controller = current_app.midi_controller
+        # Envia SysEx (ajuste conforme seu MIDIController)
+        result = midi_controller.send_sysex(sysex_bytes, input_channel, output_channel)
+        if result:
+            return jsonify({'success': True, 'response': 'SysEx enviado com sucesso'})
+        else:
+            return jsonify({'success': False, 'error': 'Erro ao enviar SysEx'}), 500
+    except Exception as e:
+        logger.error(f"Erro ao enviar SysEx: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@midi_bp.route('/patches/<int:patch_id>/activate', methods=['POST'])
+def activate_patch(patch_id):
+    try:
+        cache_manager = current_app.cache_manager
+        patch = cache_manager.get_patch(patch_id)
+        if not patch:
+            return jsonify({'success': False, 'error': 'Patch não encontrado'}), 404
+        # Envia comando para ativar patch (ajuste conforme sua lógica)
+        midi_controller = current_app.midi_controller
+        result = midi_controller.activate_patch(patch)
+        if not result:
+            return jsonify({'success': False, 'error': 'Erro ao ativar patch'}), 500
+        # Marca como ativo
+        cache_manager.set_active_patch(patch_id)
+        return jsonify({'success': True, 'message': 'Patch ativado e marcado como ativo'})
+    except Exception as e:
+        logger.error(f"Erro ao ativar patch: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @midi_bp.route('/sysex/tuner', methods=['POST'])
 def sysex_tuner():
     device = request.json.get('device')

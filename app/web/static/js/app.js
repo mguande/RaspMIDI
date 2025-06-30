@@ -55,6 +55,7 @@ class RaspMIDI {
             this.setupEdicaoMenu(); // Chamado apenas uma vez
             this.startStatusUpdates();
             this.setupPatchListControls(); // Adiciona listeners para ordenação e visualização
+            this.setupSysExSection();
             
             console.log("✅ Aplicação inicializada com sucesso");
             
@@ -3503,6 +3504,56 @@ class RaspMIDI {
         } catch (e) {
             this.showNotification('Erro ao ativar patch: ' + e.message, 'error');
         }
+    }
+
+    // --- SysEx Section ---
+    setupSysExSection() {
+        const btnSend = document.getElementById('btn-send-sysex');
+        const btnExample = document.getElementById('btn-sysex-example');
+        const btnAutomate = document.getElementById('btn-sysex-automate');
+        const log = document.getElementById('sysex-log');
+        if (!btnSend || !btnExample || !btnAutomate || !log) return;
+
+        btnSend.onclick = async () => {
+            const inputCh = parseInt(document.getElementById('sysex-input-channel').value);
+            const outputCh = parseInt(document.getElementById('sysex-output-channel').value);
+            const hex = document.getElementById('sysex-command').value.trim();
+            this.logSysEx(`$ Enviando SysEx: ${hex}`);
+            try {
+                const response = await fetch('/api/midi/sysex', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input_channel: inputCh, output_channel: outputCh, data: hex })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    this.logSysEx('✅ Resposta: ' + (data.response || 'OK'));
+                } else {
+                    this.logSysEx('❌ Erro: ' + (data.error || 'Erro desconhecido'));
+                }
+            } catch (e) {
+                this.logSysEx('❌ Erro: ' + e.message);
+            }
+        };
+        btnExample.onclick = () => {
+            document.getElementById('sysex-command').value = 'F0 52 00 6E 09 00 00 22 F7';
+            this.logSysEx('# Exemplo carregado: Carregar patch C2 (SysEx para Zoom G3X)');
+        };
+        btnAutomate.onclick = async () => {
+            this.logSysEx('# Automatizando: Enviando patches C0 a C9');
+            for (let i = 0; i < 10; i++) {
+                const hex = `F0 52 00 6E 09 00 00 ${((2*10)+i).toString(16).padStart(2,'0').toUpperCase()} F7`;
+                document.getElementById('sysex-command').value = hex;
+                await new Promise(r => setTimeout(r, 400));
+                btnSend.click();
+            }
+        };
+    }
+    logSysEx(msg) {
+        const log = document.getElementById('sysex-log');
+        if (!log) return;
+        log.textContent += (log.textContent ? '\n' : '') + msg;
+        log.scrollTop = log.scrollHeight;
     }
 }
 

@@ -1582,4 +1582,8 @@ class MIDIController:
             
         except Exception as e:
             self.logger.error(f"Erro ao enviar PC para dispositivo {device_name}: {str(e)}")
-            return False 
+            return False
+
+    def activate_patch(self, patch_data: Dict) -> bool:
+        """Ativa um patch enviando para o dispositivo e marcando como ativo (se necessário)"""
+        return self.send_patch(patch_data) 

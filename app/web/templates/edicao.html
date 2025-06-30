@@ -693,6 +693,68 @@
                                 <button id="btn-zoom-effect-off" class="btn btn-danger btn-small">Desligar Efeito</button>
                             </div>
                         </div>
+
+                        <!-- Nova Seção: Comandos SysEx -->
+                        <div class="card" style="margin-top: 24px; background: #23283a; color: #fff;">
+                            <div class="card-header">
+                                <h3 class="card-title" style="color:#ffb300;">🛠️ Comandos SysEx</h3>
+                            </div>
+                            <div class="form-group" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                                <div>
+                                    <label for="sysex-input-channel" class="form-label">Canal de Entrada</label>
+                                    <select id="sysex-input-channel" class="form-input" style="width: 90px;">
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                        <option value="9">9</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                        <option value="13">13</option>
+                                        <option value="14">14</option>
+                                        <option value="15">15</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="sysex-output-channel" class="form-label">Canal de Saída</label>
+                                    <select id="sysex-output-channel" class="form-input" style="width: 90px;">
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                        <option value="9">9</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                        <option value="13">13</option>
+                                        <option value="14">14</option>
+                                        <option value="15">15</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1; min-width: 220px;">
+                                    <label for="sysex-command" class="form-label">Comando SysEx (hex)</label>
+                                    <input id="sysex-command" class="form-input" type="text" value="F0 52 00 6E 09 00 00 22 F7" style="width:100%;" />
+                                </div>
+                                <button class="btn btn-info btn-small" id="btn-send-sysex" type="button" style="height:38px;">Enviar SysEx</button>
+                                <button class="btn btn-secondary btn-small" id="btn-sysex-example" type="button" style="height:38px;">Exemplo C2</button>
+                                <button class="btn btn-warning btn-small" id="btn-sysex-automate" type="button" style="height:38px;">Automatizar Teste</button>
+                            </div>
+                            <div style="margin-top: 12px;">
+                                <label class="form-label">Log de Comandos</label>
+                                <pre id="sysex-log" style="background:#181c24; color:#b6eaff; min-height:120px; max-height:220px; overflow:auto; border-radius:6px; padding:10px; font-size:0.98rem; font-family:monospace; margin:0;"></pre>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

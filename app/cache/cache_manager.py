@@ -278,4 +278,13 @@ class CacheManager:
             'patches_count': len(self._cache.get('patches', [])),
             'effects_count': len(self._cache.get('effects', {})),
             'cache_timeout': self.cache_timeout
-        } 
+        }
+
+    def set_active_patch(self, patch_id: int):
+        """Marca o patch como ativo no sistema (apenas em memória)"""
+        self._active_patch_id = patch_id
+        self.logger.info(f"Patch ativo definido: {patch_id}")
+
+    def get_active_patch(self) -> int:
+        """Retorna o ID do patch ativo (ou None)"""
+        return getattr(self, '_active_patch_id', None) 
