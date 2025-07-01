@@ -1248,27 +1248,58 @@ class MIDIController:
             elif message.type == 'program_change':
                 command['program'] = message.program
             
+            # LOG DETALHADO: Comando MIDI recebido
+            self.logger.info(f"[CHOCOLATE DEBUG] Comando MIDI recebido: {command}")
+            
             # Adiciona à lista de comandos recebidos
             self.add_received_command(command)
             
             # Se for Program Change, ativa o patch correspondente do Chocolate
             if message.type == 'program_change':
                 try:
+                    # LOG DETALHADO: Busca de patch
+                    self.logger.info(f"[CHOCOLATE DEBUG] Program Change detectado: program={command['program']}")
+                    self.logger.info(f"[CHOCOLATE DEBUG] Total de patches do Chocolate: {len(self.chocolate_patches)}")
+                    
+                    # Lista todos os patches do Chocolate para debug
+                    for i, patch in enumerate(self.chocolate_patches):
+                        self.logger.info(f"[CHOCOLATE DEBUG] Patch {i+1}: id={patch.get('id')}, name={patch.get('name')}, input_channel={patch.get('input_channel')}, program={patch.get('program')}, zoom_patch={patch.get('zoom_patch')}")
+                    
+                    # Busca o patch correspondente
+                    patch_encontrado = None
                     for patch in self.chocolate_patches:
                         if int(patch.get('input_channel', -1)) == int(command['program']):
-                            self.logger.info(f"Ativando patch via Program Change do Chocolate: {patch['name']}")
-                            try:
-                                import requests
-                                requests.post(
-                                    "http://localhost:5000/api/midi/patch/load",
-                                    json={"patch_id": patch["id"]}, timeout=2
-                                )
-                            except Exception as e:
-                                self.logger.error(f"Erro ao ativar patch via HTTP: {e}")
-                            self._last_patch_activated = patch
+                            patch_encontrado = patch
+                            self.logger.info(f"[CHOCOLATE DEBUG] ✅ Patch encontrado por input_channel: {patch['name']}")
                             break
+                    
+                    # Se não encontrou por input_channel, tenta por program
+                    if not patch_encontrado:
+                        for patch in self.chocolate_patches:
+                            if int(patch.get('program', -1)) == int(command['program']):
+                                patch_encontrado = patch
+                                self.logger.info(f"[CHOCOLATE DEBUG] ✅ Patch encontrado por program: {patch['name']}")
+                                break
+                    
+                    if patch_encontrado:
+                        self.logger.info(f"[CHOCOLATE DEBUG] Ativando patch: id={patch_encontrado['id']}, name={patch_encontrado['name']}, zoom_patch={patch_encontrado.get('zoom_patch')}")
+                        try:
+                            import requests
+                            response = requests.post(
+                                "http://localhost:5000/api/midi/patch/load",
+                                json={"patch_id": patch_encontrado["id"]}, timeout=2
+                            )
+                            if response.status_code == 200:
+                                self.logger.info(f"[CHOCOLATE DEBUG] ✅ Patch ativado com sucesso via HTTP")
+                            else:
+                                self.logger.error(f"[CHOCOLATE DEBUG] ❌ Erro HTTP ao ativar patch: {response.status_code} - {response.text}")
+                        except Exception as e:
+                            self.logger.error(f"[CHOCOLATE DEBUG] ❌ Erro ao ativar patch via HTTP: {e}")
+                        self._last_patch_activated = patch_encontrado
+                    else:
+                        self.logger.warning(f"[CHOCOLATE DEBUG] ⚠️ Nenhum patch encontrado para program {command['program']}")
                 except Exception as e:
-                    self.logger.error(f"Erro ao ativar patch via Program Change: {str(e)}")
+                    self.logger.error(f"[CHOCOLATE DEBUG] ❌ Erro ao ativar patch via Program Change: {str(e)}")
             
             # Processa mapeamentos de banco se ativo
             self._process_bank_mappings(command)

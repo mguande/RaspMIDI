@@ -141,18 +141,21 @@ class ZoomG3XController:
                 return False
 
             command_type = patch_data.get('command_type', 'pc')
-            self.logger.info(f"Carregando patch '{patch_data.get('name')}' (Tipo: {command_type})")
+            self.logger.info(f"[ZOOM DEBUG] Carregando patch '{patch_data.get('name')}' (Tipo: {command_type})")
+            self.logger.info(f"[ZOOM DEBUG] Dados completos do patch: {patch_data}")
 
             # 1. Usa 'zoom_patch' como a fonte definitiva para o número do programa global
             program_number = patch_data.get('zoom_patch')
 
             if program_number is None:
-                self.logger.error("Patch da Zoom não contém a chave 'zoom_patch' com o número global.")
+                self.logger.error("[ZOOM DEBUG] Patch da Zoom não contém a chave 'zoom_patch' com o número global.")
                 return False
+
+            self.logger.info(f"[ZOOM DEBUG] Enviando Program Change para Zoom: channel=0, program={program_number}")
 
             # Envia o comando PC
             if not self.send_pc(0, int(program_number)):
-                self.logger.error(f"Falha ao enviar Program Change {program_number}")
+                self.logger.error(f"[ZOOM DEBUG] Falha ao enviar Program Change {program_number}")
                 return False
             
             # Pequena pausa para o pedal processar a mudança de patch
@@ -221,16 +224,17 @@ class ZoomG3XController:
         """Envia mensagem Program Change"""
         try:
             if not self.connected or self.port is None:
+                self.logger.error(f"[ZOOM DEBUG] Não conectado ou porta não disponível para enviar PC: channel={channel}, program={program}")
                 return False
 
             message = mido.Message('program_change', channel=channel, program=program)
             self.port.send(message)
 
-            self.logger.debug(f"PC enviado: Channel={channel}, Program={program}")
+            self.logger.info(f"[ZOOM DEBUG] ✅ PC enviado com sucesso: Channel={channel}, Program={program}")
             return True
 
         except Exception as e:
-            self.logger.error(f"Erro ao enviar PC: {str(e)}")
+            self.logger.error(f"[ZOOM DEBUG] ❌ Erro ao enviar PC: {str(e)}")
             return False
     
     def _send_effect_parameters(self, effect_name: str, effect_params: Dict):

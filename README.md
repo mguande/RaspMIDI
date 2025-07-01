@@ -155,6 +155,194 @@ Crie um arquivo `config.json` na raiz do projeto:
 - `FLASK_DEBUG`: Modo debug (True/False)
 - `DATABASE_PATH`: Caminho do banco de dados
 
+## 🚀 Scripts de Deploy
+
+O projeto inclui diversos scripts para facilitar o deploy e desenvolvimento no Raspberry Pi.
+
+### 📋 Scripts Principais
+
+#### `deploy_raspberry.py`
+Script principal de deploy automatizado para Raspberry Pi.
+```bash
+python deploy_raspberry.py
+```
+**Funcionalidades:**
+- Para o serviço atual
+- Sincroniza código via rsync
+- Reinicia o serviço
+- Testa a API
+- Verifica logs
+
+#### `remote_dev.py`
+Interface interativa para desenvolvimento remoto.
+```bash
+python remote_dev.py
+```
+**Opções disponíveis:**
+1. Testar conexão SSH
+2. Configurar chave SSH
+3. Sincronizar código
+4. Instalar dependências
+5. Iniciar aplicação
+6. Parar aplicação
+7. Verificar status
+8. Ver logs
+9. Deploy completo
+
+### 🔧 Scripts Especializados
+
+#### Deploy Automatizado
+- `deploy_auto.py` - Deploy completamente automatizado
+- `deploy_complete.bat` - Script batch para Windows
+- `deploy.ps1` - Script PowerShell
+- `deploy.bat` - Script batch alternativo
+
+#### Deploy Manual
+- `manual_deploy.py` - Deploy com controle manual
+- `manual_deploy_fix.py` - Deploy com correções específicas
+- `create_dir_and_deploy.py` - Cria diretórios e faz deploy
+
+#### Scripts de Shell
+- `deploy_raspberry_commands.sh` - Comandos shell para deploy
+- `deploy_raspberry_direct.py` - Deploy direto sem SSH
+- `deploy_raspberry_no_sshpass.py` - Deploy sem sshpass
+- `deploy_raspberry_simple.sh` - Deploy simplificado
+
+#### Scripts PowerShell
+- `deploy_raspberry_ps1.ps1` - Script PowerShell para deploy
+- `deploy_simple.ps1` - Script PowerShell simplificado
+
+### 🛠️ Scripts de Configuração
+
+#### Setup do Raspberry
+- `setup_raspberry.py` - Configuração inicial do Raspberry
+- `setup_raspberry_fixed.py` - Configuração com correções
+- `install.sh` - Script de instalação
+- `install_midi_deps.py` - Instala dependências MIDI
+
+#### Configuração de Serviço
+- `raspmidi.service` - Arquivo de serviço systemd
+- `start_raspberry.sh` - Script de inicialização
+
+### 🔍 Scripts de Debug
+
+#### Monitoramento
+- `debug_start.py` - Debug da inicialização
+- `debug_patches.py` - Debug de patches
+- `debug_patch_activation.py` - Debug de ativação de patches
+- `debug_patch_creation.py` - Debug de criação de patches
+- `debug_patch_data.py` - Debug de dados de patches
+- `debug_cache_init.py` - Debug de inicialização do cache
+- `debug_cache_status.py` - Debug de status do cache
+- `debug_chocolate.py` - Debug do Chocolate MIDI
+
+#### Testes
+- `test_palco_flow.py` - Teste do fluxo da tela do palco
+- `test_palco_functionality.py` - Teste de funcionalidade do palco
+- `test_palco_stability.py` - Teste de estabilidade do palco
+- `test_patch_activation.py` - Teste de ativação de patches
+- `test_displays.py` - Teste de displays
+- `test_chocolate_patch_selection.py` - Teste de seleção de patches do Chocolate
+
+### 🔄 Scripts de Manutenção
+
+#### Banco de Dados
+- `copy_db_from_raspberry.py` - Copia banco do Raspberry
+- `download_db.py` - Download do banco
+- `reset_patches.py` - Reset de patches
+- `create_new_patches.py` - Cria novos patches
+- `create_test_patches.py` - Cria patches de teste
+
+#### Reinicialização
+- `restart_alsa.py` - Reinicia ALSA
+- `restart_pi.py` - Reinicia Raspberry Pi
+- `restart_usb.py` - Reinicia dispositivos USB
+
+#### Logs e Cache
+- `add_debug_logs.js` - Adiciona logs de debug no frontend
+- `check_patches_api.js` - Verifica API de patches
+- `clear_patches_console.js` - Limpa console de patches
+- `fix_infinite_loading.js` - Corrige carregamento infinito
+- `fix_navigation.js` - Corrige navegação
+- `fix_patch_loading.js` - Corrige carregamento de patches
+
+### 📊 Scripts de Análise
+
+#### Verificação
+- `verify_file_update.py` - Verifica atualização de arquivos
+- `force_chocolate_reconnect.py` - Força reconexão do Chocolate
+- `send_test_file.py` - Envia arquivo de teste
+
+### 🎯 Como Usar os Scripts
+
+#### Deploy Inicial
+```bash
+# Configuração inicial
+python setup_raspberry.py
+
+# Deploy completo
+python deploy_raspberry.py
+```
+
+#### Desenvolvimento Diário
+```bash
+# Interface interativa
+python remote_dev.py
+
+# Deploy rápido
+python deploy_auto.py
+```
+
+#### Debug
+```bash
+# Debug específico
+python debug_patches.py
+
+# Teste de funcionalidade
+python test_palco_flow.py
+```
+
+### ⚙️ Configuração de Deploy
+
+#### Arquivo de Configuração
+Crie `raspberry_config.json`:
+```json
+{
+  "ip": "192.168.15.8",
+  "user": "matheus",
+  "password": "raspberry",
+  "remote_dir": "/home/matheus/RaspMIDI",
+  "exclude_patterns": [
+    "venv/",
+    "logs/",
+    "__pycache__/",
+    "*.pyc"
+  ]
+}
+```
+
+#### Variáveis de Ambiente
+- `RASPBERRY_IP` - IP do Raspberry Pi
+- `RASPBERRY_USER` - Usuário SSH
+- `RASPBERRY_PASS` - Senha SSH (não recomendado)
+- `RASPBERRY_DIR` - Diretório remoto
+
+### 🔐 Segurança
+
+#### SSH Keys (Recomendado)
+```bash
+# Gerar chave SSH
+ssh-keygen -t rsa -b 4096 -C "raspmidi@example.com"
+
+# Copiar para Raspberry
+ssh-copy-id matheus@192.168.15.8
+```
+
+#### Senha (Alternativo)
+- Use `sshpass` para automação com senha
+- Configure no arquivo de configuração
+- **⚠️ Não recomendado para produção**
+
 ## 🐛 Troubleshooting
 
 ### Problemas Comuns
@@ -173,6 +361,12 @@ Crie um arquivo `config.json` na raiz do projeto:
    - Verifique se o servidor está rodando
    - Verifique logs de erro
    - Limpe cache do navegador
+
+4. **Problemas de Deploy**
+   - Verifique conexão SSH
+   - Confirme IP e usuário
+   - Verifique permissões de arquivo
+   - Use `remote_dev.py` para debug
 
 ## 📝 Logs
 
