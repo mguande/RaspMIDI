@@ -201,6 +201,10 @@
         .back-btn:hover {
             background: #1a5fb4;
         }
+        
+        .log-btn { background:#2a2e3a; color:#ffd700; border:none; border-radius:0.4rem; padding:0.5rem 1.2rem; font-size:1rem; cursor:pointer; transition:background 0.2s; }
+        .log-btn:hover { background:#3a3e4a; }
+        .log-combo { padding:0.4rem 0.8rem; border-radius:0.3rem; border:1px solid #444; background:#181c24; color:#ffd700; font-size:1rem; }
     </style>
 </head>
 <body>
@@ -296,6 +300,29 @@
                     <span class="log-text">Sistema de verificação inicializado. Selecione uma opção acima para começar.</span>
                 </div>
             </div>
+        </div>
+        
+        <!-- === MENU DE LOGS === -->
+        <div class="log-section" style="margin-top:2rem; padding:2rem; background:#23283a; border-radius:1rem; box-shadow:0 2px 8px #0002;">
+            <h2 style="color:#ffd700;">Logs do Sistema</h2>
+            <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center; margin-bottom:1rem;">
+                <button id="btn-log-atual" class="log-btn">Ler log atual</button>
+                <select id="combo-log-linhas" class="log-combo">
+                    <option value="50">50 linhas</option>
+                    <option value="100" selected>100 linhas</option>
+                    <option value="300">300 linhas</option>
+                    <option value="1000">1000 linhas</option>
+                    <option value="-1">Todas</option>
+                </select>
+                <button id="btn-log-tail" class="log-btn">Ler em tempo real</button>
+                <button id="btn-log-expurgar" class="log-btn" style="margin-left:2rem;">Expurgar logs antigos</button>
+            </div>
+            <div style="margin-bottom:1rem;">
+                <label for="combo-log-arquivo">Arquivo de log:</label>
+                <select id="combo-log-arquivo" class="log-combo"></select>
+                <button id="btn-log-arquivo" class="log-btn">Ler arquivo</button>
+            </div>
+            <pre id="log-output" style="background:#181c24; color:#fff; padding:1rem; border-radius:0.5rem; max-height:400px; overflow:auto; font-size:12px;"></pre>
         </div>
     </div>
     
@@ -687,6 +714,107 @@
         document.addEventListener('DOMContentLoaded', function() {
             addLogEntry('Sistema de verificação carregado com sucesso.', 'success');
         });
+
+        async function carregarListaLogs() {
+            const combo = document.getElementById('combo-log-arquivo');
+            combo.innerHTML = '';
+            try {
+                const resp = await fetch('/api/midi/logs/list');
+                const data = await resp.json();
+                if (data.success) {
+                    data.files.forEach(f => {
+                        const opt = document.createElement('option');
+                        opt.value = f;
+                        opt.textContent = f;
+                        combo.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error('Erro ao carregar lista de logs:', e); }
+        }
+
+        async function lerLogAtual() {
+            const linhas = document.getElementById('combo-log-linhas').value;
+            const url = `/api/midi/logs/current?lines=${linhas}`;
+            const out = document.getElementById('log-output');
+            out.textContent = 'Carregando...';
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.success) {
+                    out.textContent = data.lines.join('\n');
+                } else {
+                    out.textContent = data.error || 'Erro ao ler log.';
+                }
+            } catch (e) { out.textContent = 'Erro ao ler log.'; }
+        }
+
+        async function lerLogArquivo() {
+            const arquivo = document.getElementById('combo-log-arquivo').value;
+            const linhas = document.getElementById('combo-log-linhas').value;
+            const url = `/api/midi/logs/file?filename=${encodeURIComponent(arquivo)}&lines=${linhas}`;
+            const out = document.getElementById('log-output');
+            out.textContent = 'Carregando...';
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.success) {
+                    out.textContent = data.lines.join('\n');
+                } else {
+                    out.textContent = data.error || 'Erro ao ler log.';
+                }
+            } catch (e) { out.textContent = 'Erro ao ler log.'; }
+        }
+
+        let tailAbort = null;
+        function lerLogTail() {
+            const arquivo = document.getElementById('combo-log-arquivo').value;
+            const url = `/api/midi/logs/tail?filename=${encodeURIComponent(arquivo)}`;
+            const out = document.getElementById('log-output');
+            out.textContent = 'Lendo em tempo real... (pare recarregando a página)';
+            if (tailAbort) tailAbort.abort();
+            tailAbort = new AbortController();
+            fetch(url, { signal: tailAbort.signal }).then(resp => {
+                if (!resp.body) return;
+                const reader = resp.body.getReader();
+                let decoder = new TextDecoder();
+                function read() {
+                    reader.read().then(({done, value}) => {
+                        if (done) return;
+                        out.textContent += decoder.decode(value);
+                        out.scrollTop = out.scrollHeight;
+                        read();
+                    });
+                }
+                read();
+            });
+        }
+
+        async function expurgarLogsAntigos() {
+            if (!confirm('Deseja realmente expurgar logs com mais de 15 dias?')) return;
+            const out = document.getElementById('log-output');
+            out.textContent = 'Expurgando...';
+            try {
+                const resp = await fetch('/api/midi/logs/purge_old', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    out.textContent = `Logs removidos: ${data.removed.join(', ')}`;
+                    carregarListaLogs();
+                } else {
+                    out.textContent = data.error || 'Erro ao expurgar logs.';
+                }
+            } catch (e) { out.textContent = 'Erro ao expurgar logs.'; }
+        }
+
+        document.getElementById('btn-log-atual').onclick = lerLogAtual;
+        document.getElementById('btn-log-arquivo').onclick = lerLogArquivo;
+        document.getElementById('btn-log-tail').onclick = lerLogTail;
+        document.getElementById('btn-log-expurgar').onclick = expurgarLogsAntigos;
+        document.getElementById('combo-log-linhas').onchange = () => {
+            if (document.getElementById('combo-log-arquivo').value) lerLogArquivo();
+            else lerLogAtual();
+        };
+
+        carregarListaLogs();
     </script>
 </body>
 </html> 

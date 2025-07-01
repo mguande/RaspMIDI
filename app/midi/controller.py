@@ -8,9 +8,9 @@ import threading
 import time
 import json
 import os
+import atexit
 from typing import Dict, List, Optional
 import mido
-from app.main import _app_instance as app
 
 from app.config import Config
 from app.midi.zoom_g3x import ZoomG3XController
@@ -40,7 +40,123 @@ class MIDIController:
         
         self._last_patch_activated = None
         
+        self.chocolate_patches = []
+        
+        # Pool de conexões MIDI para evitar múltiplas aberturas
+        self._midi_connections = {}
+        self._connection_lock = threading.Lock()
+        
+        # Registra cleanup automático
+        atexit.register(self.cleanup)
+        
         self.logger.info("Controlador MIDI inicializado")
+    
+    def cleanup(self):
+        """Cleanup automático de recursos MIDI"""
+        try:
+            self.logger.info("Executando cleanup de recursos MIDI...")
+            
+            # Para monitoramento
+            self.stop_midi_input_monitoring()
+            
+            # Desconecta controladores específicos
+            if self.zoom_g3x:
+                self.zoom_g3x.disconnect()
+            if self.chocolate:
+                self.chocolate.disconnect()
+            
+            # Fecha todas as conexões do pool
+            with self._connection_lock:
+                for port_name, port in self._midi_connections.items():
+                    try:
+                        if port and hasattr(port, 'close'):
+                            port.close()
+                            self.logger.debug(f"Porta MIDI fechada: {port_name}")
+                    except Exception as e:
+                        self.logger.warning(f"Erro ao fechar porta {port_name}: {e}")
+                self._midi_connections.clear()
+            
+            # Força liberação de recursos ALSA
+            try:
+                import mido
+                # Fecha todas as portas abertas pelo mido
+                for port in mido.get_input_names():
+                    try:
+                        temp_port = mido.open_input(port)
+                        temp_port.close()
+                    except:
+                        pass
+                for port in mido.get_output_names():
+                    try:
+                        temp_port = mido.open_output(port)
+                        temp_port.close()
+                    except:
+                        pass
+            except Exception as e:
+                self.logger.warning(f"Erro ao limpar portas mido: {e}")
+            
+            self.logger.info("Cleanup de recursos MIDI concluído")
+            
+        except Exception as e:
+            self.logger.error(f"Erro durante cleanup: {e}")
+    
+    def _get_midi_connection(self, port_name: str, port_type: str = 'output'):
+        """Obtém conexão MIDI do pool ou cria nova"""
+        connection_key = f"{port_type}_{port_name}"
+        
+        with self._connection_lock:
+            if connection_key in self._midi_connections:
+                port = self._midi_connections[connection_key]
+                if port and hasattr(port, 'closed') and not port.closed:
+                    return port
+                else:
+                    # Remove conexão inválida
+                    del self._midi_connections[connection_key]
+            
+            # Cria nova conexão
+            try:
+                if port_type == 'input':
+                    port = mido.open_input(port_name)
+                else:
+                    port = mido.open_output(port_name)
+                
+                self._midi_connections[connection_key] = port
+                self.logger.debug(f"Nova conexão MIDI criada: {connection_key}")
+                return port
+                
+            except Exception as e:
+                self.logger.error(f"Erro ao criar conexão MIDI {connection_key}: {e}")
+                return None
+    
+    def _close_midi_connection(self, port_name: str, port_type: str = 'output'):
+        """Fecha conexão MIDI específica"""
+        connection_key = f"{port_type}_{port_name}"
+        
+        with self._connection_lock:
+            if connection_key in self._midi_connections:
+                port = self._midi_connections[connection_key]
+                try:
+                    if port and hasattr(port, 'close'):
+                        port.close()
+                        self.logger.debug(f"Conexão MIDI fechada: {connection_key}")
+                except Exception as e:
+                    self.logger.warning(f"Erro ao fechar conexão {connection_key}: {e}")
+                finally:
+                    del self._midi_connections[connection_key]
+    
+    def _send_midi_with_connection_pool(self, message, port_name: str, port_type: str = 'output'):
+        """Envia mensagem MIDI usando pool de conexões"""
+        try:
+            port = self._get_midi_connection(port_name, port_type)
+            if port:
+                port.send(message)
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar mensagem MIDI: {e}")
+            # Remove conexão problemática
+            self._close_midi_connection(port_name, port_type)
+            return False
     
     def _load_midi_config(self) -> Dict:
         """Carrega configurações MIDI do arquivo"""
@@ -916,38 +1032,28 @@ class MIDIController:
             return False
     
     def _send_midi_via_mido(self, message_type: str, device_name: str, **kwargs) -> bool:
-        """Método robusto para envio MIDI via mido com tratamento de erros"""
+        """Envia mensagem MIDI via mido usando pool de conexões"""
         try:
             import mido
             
-            if device_name not in self._available_ports.get('outputs', []):
-                self.logger.error(f"Porta {device_name} não encontrada")
+            # Cria mensagem MIDI
+            if message_type == 'program_change':
+                message = mido.Message('program_change', channel=kwargs.get('channel', 0), program=kwargs.get('program', 0))
+            elif message_type == 'control_change':
+                message = mido.Message('control_change', channel=kwargs.get('channel', 0), control=kwargs.get('control', 0), value=kwargs.get('value', 0))
+            elif message_type == 'note_on':
+                message = mido.Message('note_on', channel=kwargs.get('channel', 0), note=kwargs.get('note', 0), velocity=kwargs.get('velocity', 64))
+            elif message_type == 'note_off':
+                message = mido.Message('note_off', channel=kwargs.get('channel', 0), note=kwargs.get('note', 0))
+            else:
+                self.logger.error(f"Tipo de mensagem não suportado: {message_type}")
                 return False
             
-            # Tenta diferentes estratégias de envio
-            strategies = [
-                # Estratégia 1: Conexão temporária com context manager
-                lambda: self._send_midi_strategy_1(mido, message_type, device_name, **kwargs),
-                # Estratégia 2: Conexão persistente
-                lambda: self._send_midi_strategy_2(mido, message_type, device_name, **kwargs),
-                # Estratégia 3: Usando backend específico
-                lambda: self._send_midi_strategy_3(mido, message_type, device_name, **kwargs)
-            ]
-            
-            for i, strategy in enumerate(strategies, 1):
-                try:
-                    if strategy():
-                        self.logger.info(f"{message_type.upper()} enviado para {device_name} via estratégia {i}")
-                        return True
-                except Exception as e:
-                    self.logger.warning(f"Estratégia {i} falhou para {device_name}: {str(e)}")
-                    continue
-            
-            self.logger.error(f"Todas as estratégias falharam para {device_name}")
-            return False
+            # Envia usando pool de conexões
+            return self._send_midi_with_connection_pool(message, device_name, 'output')
             
         except Exception as e:
-            self.logger.error(f"Erro geral ao enviar MIDI para {device_name}: {str(e)}")
+            self.logger.error(f"Erro ao enviar mensagem MIDI: {str(e)}")
             return False
     
     def _send_midi_strategy_1(self, mido, message_type: str, device_name: str, **kwargs) -> bool:
@@ -1030,7 +1136,7 @@ class MIDIController:
         self.logger.debug(f"Comando MIDI recebido: {command}")
     
     def start_midi_input_monitoring(self, device_name: str = None):
-        """Inicia monitoramento de entrada MIDI"""
+        """Inicia monitoramento de entrada MIDI usando pool de conexões"""
         try:
             # Usa dispositivo especificado ou o configurado
             input_device = device_name or self.midi_config.get('input_device')
@@ -1054,83 +1160,23 @@ class MIDIController:
                 self.logger.error(f"Dispositivo {input_device} não encontrado na configuração")
                 return False
             
-            # Tenta conectar ao dispositivo de entrada real
+            # Tenta conectar ao dispositivo de entrada usando pool de conexões
             try:
                 if real_device_name in self._available_ports.get('inputs', []):
-                    # Implementação real com mido - múltiplas estratégias
-                    import mido
-                    
-                    # Estratégia 1: Tentar abrir diretamente
-                    try:
-                        self._midi_input = mido.open_input(real_device_name, callback=self._on_midi_message)
-                        self.logger.info(f"Monitoramento MIDI REAL iniciado para: {real_device_name}")
+                    # Usa pool de conexões para entrada MIDI
+                    port = self._get_midi_connection(real_device_name, 'input')
+                    if port:
+                        # Configura callback para mensagens recebidas
+                        port.callback = self._on_midi_message
+                        self._midi_input = port
+                        self.logger.info(f"Monitoramento MIDI iniciado para: {real_device_name}")
                         self._input_monitoring_active = True
                         self._monitoring_device = input_device
                         self._monitoring_mode = "REAL"
                         return True
-                    except Exception as e1:
-                        self.logger.warning(f"Estratégia 1 falhou: {str(e1)}")
-                        
-                        # Estratégia 2: Fechar portas existentes e tentar novamente
-                        try:
-                            # Fecha porta se estiver aberta
-                            if hasattr(self, '_midi_input') and self._midi_input:
-                                try:
-                                    self._midi_input.close()
-                                except:
-                                    pass
-                                self._midi_input = None
-                            
-                            # Aguarda um pouco
-                            import time
-                            time.sleep(0.5)
-                            
-                            # Tenta abrir novamente
-                            self._midi_input = mido.open_input(real_device_name, callback=self._on_midi_message)
-                            self.logger.info(f"Monitoramento MIDI REAL iniciado para: {real_device_name} (estratégia 2)")
-                            self._input_monitoring_active = True
-                            self._monitoring_device = input_device
-                            self._monitoring_mode = "REAL"
-                            return True
-                        except Exception as e2:
-                            self.logger.warning(f"Estratégia 2 falhou: {str(e2)}")
-                            
-                            # Estratégia 3: Tentar com configurações diferentes
-                            try:
-                                # Fecha porta se estiver aberta
-                                if hasattr(self, '_midi_input') and self._midi_input:
-                                    try:
-                                        self._midi_input.close()
-                                    except:
-                                        pass
-                                    self._midi_input = None
-                                
-                                # Aguarda mais tempo
-                                time.sleep(1.0)
-                                
-                                # Tenta com configurações explícitas
-                                self._midi_input = mido.open_input(
-                                    real_device_name, 
-                                    callback=self._on_midi_message,
-                                    virtual=False
-                                )
-                                self.logger.info(f"Monitoramento MIDI REAL iniciado para: {real_device_name} (estratégia 3)")
-                                self._input_monitoring_active = True
-                                self._monitoring_device = input_device
-                                self._monitoring_mode = "REAL"
-                                return True
-                            except Exception as e3:
-                                self.logger.error(f"Todas as estratégias falharam para {real_device_name}")
-                                self.logger.error(f"Estratégia 1: {str(e1)}")
-                                self.logger.error(f"Estratégia 2: {str(e2)}")
-                                self.logger.error(f"Estratégia 3: {str(e3)}")
-                                
-                                # Fallback para modo simulado
-                                self.logger.info("Iniciando monitoramento em modo SIMULADO")
-                                self._input_monitoring_active = True
-                                self._monitoring_device = input_device
-                                self._monitoring_mode = "SIMULATED"
-                                return True
+                    else:
+                        self.logger.error(f"Falha ao abrir porta de entrada: {real_device_name}")
+                        return False
                 else:
                     self.logger.warning(f"Dispositivo de entrada {real_device_name} não encontrado")
                     self.logger.info(f"Dispositivos disponíveis: {self._available_ports.get('inputs', [])}")
@@ -1151,14 +1197,14 @@ class MIDIController:
             return False
     
     def stop_midi_input_monitoring(self):
-        """Para monitoramento de entrada MIDI"""
+        """Para monitoramento de entrada MIDI usando pool de conexões"""
         try:
             self._input_monitoring_active = False
             
-            # Fecha porta MIDI se estiver aberta
+            # Remove callback da porta
             if hasattr(self, '_midi_input') and self._midi_input:
                 try:
-                    self._midi_input.close()
+                    self._midi_input.callback = None
                     self._midi_input = None
                 except:
                     pass
@@ -1208,19 +1254,19 @@ class MIDIController:
             # Se for Program Change, ativa o patch correspondente do Chocolate
             if message.type == 'program_change':
                 try:
-                    cache_manager = getattr(app, 'cache_manager', None)
-                    if cache_manager:
-                        patches = cache_manager.get_patches()
-                        for patch in patches:
-                            if (
-                                patch.get('input_device') == 'Chocolate MIDI' and 
-                                int(patch.get('input_channel', -1)) == int(command['program'])
-                            ):
-                                self.logger.info(f"Ativando patch via Program Change do Chocolate: {patch['name']}")
-                                with app.app_context():
-                                    self.send_patch(patch)
-                                self._last_patch_activated = patch
-                                break
+                    for patch in self.chocolate_patches:
+                        if int(patch.get('input_channel', -1)) == int(command['program']):
+                            self.logger.info(f"Ativando patch via Program Change do Chocolate: {patch['name']}")
+                            try:
+                                import requests
+                                requests.post(
+                                    "http://localhost:5000/api/midi/patch/load",
+                                    json={"patch_id": patch["id"]}, timeout=2
+                                )
+                            except Exception as e:
+                                self.logger.error(f"Erro ao ativar patch via HTTP: {e}")
+                            self._last_patch_activated = patch
+                            break
                 except Exception as e:
                     self.logger.error(f"Erro ao ativar patch via Program Change: {str(e)}")
             
@@ -1327,13 +1373,20 @@ class MIDIController:
             self.logger.error(f"Erro ao executar comando de saída: {str(e)}")
     
     def disconnect(self):
-        """Desconecta todos os dispositivos"""
+        """Desconecta todos os dispositivos e executa cleanup completo"""
         try:
+            # Para monitoramento
+            self.stop_midi_input_monitoring()
+            
+            # Desconecta controladores específicos
             if self.zoom_g3x:
                 self.zoom_g3x.disconnect()
             
             if self.chocolate:
                 self.chocolate.disconnect()
+            
+            # Executa cleanup completo
+            self.cleanup()
             
             self._connected = False
             self.device_status = {
@@ -1341,7 +1394,7 @@ class MIDIController:
                 'chocolate': {'connected': False, 'port': None, 'last_pc': None}
             }
             
-            self.logger.info("Todos os dispositivos MIDI desconectados")
+            self.logger.info("Todos os dispositivos MIDI desconectados e cleanup executado")
             
         except Exception as e:
             self.logger.error(f"Erro ao desconectar dispositivos: {str(e)}")
@@ -1373,6 +1426,230 @@ class MIDIController:
         except Exception as e:
             self.logger.error(f"Erro ao enviar SysEx: {str(e)}")
             return False
+
+    def send_patch_select(self, ff: int, ss: int, device_name: str = None) -> bool:
+        """Envia comando para selecionar patch (B0 20 ff C0 ss)"""
+        try:
+            output_device = device_name or self.midi_config.get('output_device')
+            if not output_device:
+                self.logger.error("Nenhum dispositivo de saída configurado")
+                return False
+            # Encontra o nome real do dispositivo
+            real_device_name = None
+            for device in self.midi_config.get('devices', {}).get('outputs', []):
+                if device['name'] == output_device or device['real_name'] == output_device:
+                    real_device_name = device['real_name']
+                    break
+            if not real_device_name:
+                self.logger.error(f"Dispositivo {output_device} não encontrado")
+                return False
+            import mido
+            # B0 20 ff
+            msg1 = mido.Message('control_change', channel=0, control=32, value=ff)
+            # C0 ss
+            msg2 = mido.Message('program_change', channel=0, program=ss)
+            with mido.open_output(real_device_name) as port:
+                port.send(msg1)
+                port.send(msg2)
+            self.logger.info(f"Patch select enviado para {real_device_name}: ff={ff}, ss={ss}")
+            return True
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar Patch Select: {str(e)}")
+            return False
+
+    def get_devices_status_detailed(self) -> list:
+        """Retorna status detalhado dos dispositivos para o modo palco"""
+        try:
+            devices = []
+            
+            # Zoom G3X
+            zoom_status = {
+                'name': 'Zoom G3X',
+                'type': 'zoom_g3x',
+                'connected': self.device_status['zoom_g3x']['connected'],
+                'port': self.device_status['zoom_g3x']['port'],
+                'last_pc': self.device_status['zoom_g3x'].get('last_pc'),
+                'status_details': 'Dispositivo detectado mas não conectado'
+            }
+            
+            # Verifica se o Zoom G3X está realmente conectado
+            if self.zoom_g3x and hasattr(self.zoom_g3x, 'connected'):
+                zoom_status['connected'] = self.zoom_g3x.connected
+                if self.zoom_g3x.connected:
+                    zoom_status['status_details'] = 'Conectado e funcionando'
+                else:
+                    zoom_status['status_details'] = 'Porta detectada mas conexão falhou - pode precisar de alimentação externa'
+            else:
+                zoom_status['status_details'] = 'Controlador não inicializado'
+            
+            # Verifica se a porta do Zoom G3X está disponível
+            try:
+                import mido
+                available_outputs = mido.get_output_names()
+                zoom_port = self.device_status['zoom_g3x']['port']
+                if zoom_port and zoom_port in available_outputs:
+                    zoom_status['port_available'] = True
+                    zoom_status['status_details'] += ' - Porta disponível no sistema'
+                else:
+                    zoom_status['port_available'] = False
+                    zoom_status['status_details'] += ' - Porta não encontrada'
+            except:
+                zoom_status['port_available'] = False
+            
+            devices.append(zoom_status)
+            
+            # Chocolate (dispositivo de entrada)
+            chocolate_status = {
+                'name': 'Chocolate',
+                'type': 'chocolate',
+                'connected': self.device_status['chocolate']['connected'],
+                'port': self.device_status['chocolate']['port'],
+                'last_pc': self.device_status['chocolate'].get('last_pc'),
+                'status_details': 'Dispositivo detectado mas não conectado'
+            }
+            
+            # Para o Chocolate, se está detectado via USB, considera conectado
+            if self.device_status['chocolate']['connected']:
+                chocolate_status['connected'] = True
+                chocolate_status['status_details'] = 'Conectado e funcionando - Dispositivo de entrada detectado via USB'
+            else:
+                chocolate_status['connected'] = False
+                chocolate_status['status_details'] = 'Dispositivo de entrada não detectado via USB'
+            
+            # Verifica se a porta do Chocolate está disponível nas entradas
+            try:
+                import mido
+                available_inputs = mido.get_input_names()
+                chocolate_port = self.device_status['chocolate']['port']
+                if chocolate_port and chocolate_port in available_inputs:
+                    chocolate_status['port_available'] = True
+                    chocolate_status['status_details'] += ' - Porta disponível no sistema'
+                else:
+                    chocolate_status['port_available'] = False
+                    chocolate_status['status_details'] += ' - Porta não encontrada'
+            except:
+                chocolate_status['port_available'] = False
+            
+            devices.append(chocolate_status)
+            
+            return devices
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao obter status detalhado dos dispositivos: {str(e)}")
+            return []
+    
+    def force_reconnect_chocolate(self) -> bool:
+        """Força reconexão do Chocolate"""
+        try:
+            self.logger.info("Forçando reconexão do Chocolate...")
+            
+            # Desconecta se estiver conectado
+            if self.chocolate:
+                self.chocolate.disconnect()
+                self.device_status['chocolate']['connected'] = False
+                self.device_status['chocolate']['port'] = None
+            
+            # Reinicializa o Chocolate
+            self._init_chocolate()
+            
+            # Verifica se conseguiu conectar
+            if self.device_status['chocolate']['connected']:
+                self.logger.info("Chocolate reconectado com sucesso")
+                return True
+            else:
+                self.logger.warning("Falha ao reconectar Chocolate")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Erro ao forçar reconexão do Chocolate: {str(e)}")
+            return False
+
+    def force_reconnect_zoom_g3x(self) -> bool:
+        """Força reconexão do Zoom G3X"""
+        try:
+            self.logger.info("Forçando reconexão do Zoom G3X...")
+            
+            # Desconecta se estiver conectado
+            if self.zoom_g3x:
+                self.zoom_g3x.disconnect()
+                self.device_status['zoom_g3x']['connected'] = False
+                self.device_status['zoom_g3x']['port'] = None
+            
+            # Reinicializa o Zoom G3X
+            self._init_zoom_g3x()
+            
+            # Verifica se conseguiu conectar
+            if self.device_status['zoom_g3x']['connected']:
+                self.logger.info("Zoom G3X reconectado com sucesso")
+                return True
+            else:
+                self.logger.warning("Falha ao reconectar Zoom G3X")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Erro ao forçar reconexão do Zoom G3X: {str(e)}")
+            return False
+
+    def _send_pc_to_device(self, channel: int, program: int, device_name: str) -> bool:
+        """Envia mensagem Program Change para um dispositivo específico"""
+        try:
+            # Encontra o nome real do dispositivo
+            real_device_name = None
+            for device in self.midi_config.get('devices', {}).get('outputs', []):
+                if device['name'] == device_name or device['real_name'] == device_name:
+                    real_device_name = device['real_name']
+                    break
+            
+            if not real_device_name:
+                self.logger.error(f"Dispositivo {device_name} não encontrado")
+                return False
+            
+            # Tenta enviar via controlador específico primeiro
+            if 'zoom' in device_name.lower() or 'g3x' in device_name.lower():
+                if self.zoom_g3x and self.device_status['zoom_g3x']['connected']:
+                    try:
+                        result = self.zoom_g3x.send_pc(channel, program)
+                        if result:
+                            self.device_status['zoom_g3x']['last_pc'] = program
+                            return result
+                    except Exception as e:
+                        self.logger.warning(f"Erro ao enviar via controlador Zoom G3X: {str(e)}, tentando via mido")
+            elif 'chocolate' in device_name.lower():
+                if self.chocolate and self.device_status['chocolate']['connected']:
+                    try:
+                        result = self.chocolate.send_pc(channel, program)
+                        if result:
+                            self.device_status['chocolate']['last_pc'] = program
+                            return result
+                    except Exception as e:
+                        self.logger.warning(f"Erro ao enviar via controlador Chocolate: {str(e)}, tentando via mido")
+            
+            # Sempre tenta enviar diretamente via mido como fallback
+            self.logger.info(f"Tentando enviar PC via mido para {real_device_name}")
+            result = self._send_midi_via_mido('program_change', real_device_name, channel=channel, program=program)
+            
+            # Atualiza last_pc se sucesso
+            if result:
+                if 'zoom' in device_name.lower() or 'g3x' in device_name.lower():
+                    self.device_status['zoom_g3x']['last_pc'] = program
+                elif 'chocolate' in device_name.lower():
+                    self.device_status['chocolate']['last_pc'] = program
+                self.logger.info(f"PC {program} enviado com sucesso para {real_device_name}")
+            else:
+                self.logger.error(f"Falha ao enviar PC {program} para {real_device_name}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar PC para dispositivo {device_name}: {str(e)}")
+            return False
+
+    def activate_patch(self, patch_data: Dict) -> bool:
+        """Ativa um patch enviando para o dispositivo e marcando como ativo (se necessário)"""
+        return self.send_patch(patch_data)
+
+    def atualizar_patches_chocolate(self, patches):
+        self.chocolate_patches = [p for p in patches if p.get('input_device') == 'Chocolate MIDI']
 
     def send_patch_select(self, ff: int, ss: int, device_name: str = None) -> bool:
         """Envia comando para selecionar patch (B0 20 ff C0 ss)"""

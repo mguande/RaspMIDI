@@ -4,7 +4,9 @@ RaspMIDI - Rotas MIDI
 """
 
 import logging
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_file, Response
+import os
+from datetime import datetime, timedelta
 
 midi_bp = Blueprint('midi', __name__)
 logger = logging.getLogger(__name__)
@@ -1434,4 +1436,86 @@ def get_zoom_patches_db(bank_letter):
         return jsonify({'success': True, 'data': patches})
     except Exception as e:
         logger.error(f"Erro ao buscar patches da Zoom no cache: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500 
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- LOGS ---
+@midi_bp.route('/logs/list', methods=['GET'])
+def list_logs():
+    log_dir = 'logs'
+    files = [f for f in os.listdir(log_dir) if f.startswith('raspmidi_') and f.endswith('.log')]
+    files.sort(reverse=True)
+    return {'success': True, 'files': files}
+
+@midi_bp.route('/logs/current', methods=['GET'])
+def get_current_log():
+    lines = int(request.args.get('lines', 100))
+    log_dir = 'logs'
+    today = datetime.now().strftime('%Y-%m-%d')
+    log_file = os.path.join(log_dir, f'raspmidi_{today}.log')
+    if not os.path.exists(log_file):
+        return {'success': False, 'error': 'Log atual não encontrado'}, 404
+    return {'success': True, 'lines': tail(log_file, lines)}
+
+@midi_bp.route('/logs/file', methods=['GET'])
+def get_log_file():
+    filename = request.args.get('filename')
+    lines = int(request.args.get('lines', 100))
+    log_dir = 'logs'
+    log_file = os.path.join(log_dir, filename)
+    if not os.path.exists(log_file):
+        return {'success': False, 'error': 'Arquivo de log não encontrado'}, 404
+    return {'success': True, 'lines': tail(log_file, lines)}
+
+@midi_bp.route('/logs/purge_old', methods=['POST'])
+def purge_old_logs():
+    log_dir = 'logs'
+    now = datetime.now()
+    removed = []
+    for f in os.listdir(log_dir):
+        if f.startswith('raspmidi_') and f.endswith('.log'):
+            path = os.path.join(log_dir, f)
+            mtime = datetime.fromtimestamp(os.path.getmtime(path))
+            if (now - mtime).days >= 15:
+                os.remove(path)
+                removed.append(f)
+    return {'success': True, 'removed': removed}
+
+# Utilitário para ler últimas N linhas de um arquivo (como tail -n)
+def tail(filename, n):
+    with open(filename, 'rb') as f:
+        f.seek(0, os.SEEK_END)
+        end = f.tell()
+        lines = []
+        block = 1024
+        while len(lines) <= n and f.tell() > 0:
+            cur = f.tell()
+            seek = max(0, cur - block)
+            f.seek(seek)
+            data = f.read(cur - seek)
+            f.seek(seek)
+            lines = data.split(b'\n') + lines
+            f.seek(seek)
+            if seek == 0:
+                break
+        lines = [l.decode('utf-8', errors='replace') for l in lines if l.strip()]
+    return lines[-n:][::-1]  # do final para o começo
+
+# --- Log em tempo real (simples, long polling) ---
+@midi_bp.route('/logs/tail', methods=['GET'])
+def tail_log_realtime():
+    filename = request.args.get('filename')
+    log_dir = 'logs'
+    log_file = os.path.join(log_dir, filename)
+    if not os.path.exists(log_file):
+        return {'success': False, 'error': 'Arquivo de log não encontrado'}, 404
+    def generate():
+        with open(log_file, 'r', encoding='utf-8') as f:
+            f.seek(0, os.SEEK_END)
+            while True:
+                line = f.readline()
+                if line:
+                    yield line
+                else:
+                    import time
+                    time.sleep(1)
+    return Response(generate(), mimetype='text/plain') 
