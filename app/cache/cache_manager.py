@@ -70,12 +70,7 @@ class CacheManager:
                 self._loaded = True
                 self._last_load_time = datetime.now()
                 self.logger.info(f"Cache carregado com {len(patches)} patches e patches da Zoom para {len(zoom_patches)} bancos")
-                # Atualiza patches do Chocolate no MIDIController
-                from app.main import create_app
-                app = create_app()
-                midi_controller = getattr(app, 'midi_controller', None)
-                if midi_controller:
-                    midi_controller.atualizar_patches_chocolate(self._cache['patches'])
+                # Nota: MIDIController será atualizado quando necessário, não aqui para evitar recursão
                 return True
         except Exception as e:
             self.logger.error(f"Erro ao carregar cache: {str(e)}")

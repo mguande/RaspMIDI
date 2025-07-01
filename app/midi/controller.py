@@ -307,14 +307,38 @@ class MIDIController:
             # Atualiza configuração MIDI
             self.midi_config['devices'] = devices
             
-            # Se não há dispositivo configurado, usa o primeiro disponível
+            # Se não há dispositivo configurado, usa o primeiro disponível (ignorando Midi Through)
             if not self.midi_config.get('input_device') and devices['inputs']:
-                self.midi_config['input_device'] = devices['inputs'][0]['name']
-                self.logger.info(f"Dispositivo de entrada padrão: {devices['inputs'][0]['name']}")
+                # Procura primeiro dispositivo que não seja "Midi Through"
+                selected_input = None
+                for device in devices['inputs']:
+                    if 'midi through' not in device['name'].lower():
+                        selected_input = device['name']
+                        break
+                
+                # Se não encontrou nenhum, usa o primeiro disponível
+                if not selected_input and devices['inputs']:
+                    selected_input = devices['inputs'][0]['name']
+                
+                if selected_input:
+                    self.midi_config['input_device'] = selected_input
+                    self.logger.info(f"Dispositivo de entrada padrão: {selected_input}")
             
             if not self.midi_config.get('output_device') and devices['outputs']:
-                self.midi_config['output_device'] = devices['outputs'][0]['name']
-                self.logger.info(f"Dispositivo de saída padrão: {devices['outputs'][0]['name']}")
+                # Procura primeiro dispositivo que não seja "Midi Through"
+                selected_output = None
+                for device in devices['outputs']:
+                    if 'midi through' not in device['name'].lower():
+                        selected_output = device['name']
+                        break
+                
+                # Se não encontrou nenhum, usa o primeiro disponível
+                if not selected_output and devices['outputs']:
+                    selected_output = devices['outputs'][0]['name']
+                
+                if selected_output:
+                    self.midi_config['output_device'] = selected_output
+                    self.logger.info(f"Dispositivo de saída padrão: {selected_output}")
             
             self._save_midi_config()
             
@@ -1676,8 +1700,48 @@ class MIDIController:
             return False
 
     def activate_patch(self, patch_data: Dict) -> bool:
-        """Ativa um patch enviando para o dispositivo e marcando como ativo (se necessário)"""
-        return self.send_patch(patch_data)
+        """Ativa um patch enviando para o dispositivo e marcando como ativo"""
+        try:
+            self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] Iniciando ativação do patch: {patch_data.get('name')}")
+            
+            # Envia o patch para o dispositivo
+            success = self.send_patch(patch_data)
+            
+            if success:
+                # Marca como último patch ativado
+                self._last_patch_activated = patch_data
+                self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] Patch '{patch_data.get('name')}' ativado e marcado como ativo")
+                self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] _last_patch_activated definido: {self._last_patch_activated.get('name') if self._last_patch_activated else 'None'}")
+                # Salva em disco
+                try:
+                    with open(os.path.join('data', 'active_patch.json'), 'w', encoding='utf-8') as f:
+                        json.dump(patch_data, f, ensure_ascii=False, indent=2)
+                    self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] Patch ativo salvo em data/active_patch.json")
+                except Exception as e:
+                    self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Erro ao salvar patch ativo em disco: {str(e)}")
+            else:
+                self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Falha ao enviar patch para dispositivo")
+            
+            return success
+        except Exception as e:
+            self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Erro ao ativar patch: {str(e)}")
+            return False
+
+    def get_last_patch_activated(self):
+        """Retorna o último patch ativado, da memória ou do disco"""
+        if hasattr(self, '_last_patch_activated') and self._last_patch_activated:
+            return self._last_patch_activated
+        # Tenta ler do disco
+        try:
+            path = os.path.join('data', 'active_patch.json')
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    patch = json.load(f)
+                    self._last_patch_activated = patch
+                    return patch
+        except Exception as e:
+            self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Erro ao ler patch ativo do disco: {str(e)}")
+        return None
 
     def atualizar_patches_chocolate(self, patches):
         self.chocolate_patches = [p for p in patches if p.get('input_device') == 'Chocolate MIDI']
@@ -1900,5 +1964,30 @@ class MIDIController:
             return False
 
     def activate_patch(self, patch_data: Dict) -> bool:
-        """Ativa um patch enviando para o dispositivo e marcando como ativo (se necessário)"""
-        return self.send_patch(patch_data) 
+        """Ativa um patch enviando para o dispositivo e marcando como ativo"""
+        try:
+            self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] Iniciando ativação do patch: {patch_data.get('name')}")
+            
+            # Envia o patch para o dispositivo
+            success = self.send_patch(patch_data)
+            
+            if success:
+                # Marca como último patch ativado
+                self._last_patch_activated = patch_data
+                self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] Patch '{patch_data.get('name')}' ativado e marcado como ativo")
+                self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] _last_patch_activated definido: {self._last_patch_activated.get('name') if self._last_patch_activated else 'None'}")
+                # Salva em disco
+                try:
+                    with open(os.path.join('data', 'active_patch.json'), 'w', encoding='utf-8') as f:
+                        json.dump(patch_data, f, ensure_ascii=False, indent=2)
+                    self.logger.info(f"🎹 [ACTIVATE_PATCH_DEBUG] Patch ativo salvo em data/active_patch.json")
+                except Exception as e:
+                    self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Erro ao salvar patch ativo em disco: {str(e)}")
+            else:
+                self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Falha ao enviar patch para dispositivo")
+            
+            return success
+        except Exception as e:
+            self.logger.error(f"🎹 [ACTIVATE_PATCH_DEBUG] Erro ao ativar patch: {str(e)}")
+            return False
+ 

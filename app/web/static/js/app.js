@@ -182,13 +182,17 @@ class RaspMIDI {
         });
 
         // Event listeners para combos de dispositivos
-        document.getElementById('input-device')?.addEventListener('change', (e) => {
+        document.getElementById('input-device')?.addEventListener('change', async (e) => {
+            console.log('🎹 Combo input-device mudou para:', e.target.value);
             this.midiConfig.input_device = e.target.value;
+            await this.saveMidiConfig();
             this.renderDevices();
         });
         
-        document.getElementById('output-device')?.addEventListener('change', (e) => {
+        document.getElementById('output-device')?.addEventListener('change', async (e) => {
+            console.log('🎹 Combo output-device mudou para:', e.target.value);
             this.midiConfig.output_device = e.target.value;
+            await this.saveMidiConfig();
             this.renderDevices();
         });
 
@@ -1096,27 +1100,39 @@ class RaspMIDI {
         }
     }
     
-    selectDevice(deviceName, deviceType) {
-        if (deviceType === 'input') {
-            const inputSelect = document.getElementById('input-device');
-            if (inputSelect) {
-                inputSelect.value = deviceName;
+    async selectDevice(deviceName, deviceType) {
+        try {
+            console.log(`🎹 Selecionando dispositivo: ${deviceName} (${deviceType})`);
+            
+            if (deviceType === 'input') {
+                const inputSelect = document.getElementById('input-device');
+                if (inputSelect) {
+                    inputSelect.value = deviceName;
+                }
+                // Atualiza a configuração MIDI
+                this.midiConfig.input_device = deviceName;
+            } else if (deviceType === 'output') {
+                const outputSelect = document.getElementById('output-device');
+                if (outputSelect) {
+                    outputSelect.value = deviceName;
+                }
+                // Atualiza a configuração MIDI
+                this.midiConfig.output_device = deviceName;
             }
-            // Atualiza a configuração MIDI
-            this.midiConfig.input_device = deviceName;
-        } else if (deviceType === 'output') {
-            const outputSelect = document.getElementById('output-device');
-            if (outputSelect) {
-                outputSelect.value = deviceName;
-            }
-            // Atualiza a configuração MIDI
-            this.midiConfig.output_device = deviceName;
+            
+            // Salva a configuração no backend
+            console.log('🎹 Salvando configuração MIDI...');
+            await this.saveMidiConfig();
+            
+            // Recarrega os dispositivos para atualizar o estado dos botões
+            this.renderDevices();
+            
+            this.showNotification(`Dispositivo ${deviceName} selecionado e salvo`, 'success');
+            
+        } catch (error) {
+            console.error('❌ Erro ao selecionar dispositivo:', error);
+            this.showNotification('Erro ao selecionar dispositivo', 'error');
         }
-        
-        // Recarrega os dispositivos para atualizar o estado dos botões
-        this.renderDevices();
-        
-        this.showNotification(`Dispositivo ${deviceName} selecionado`, 'info');
     }
     
     showNewPatchModal() {

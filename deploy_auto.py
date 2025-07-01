@@ -159,6 +159,7 @@ def main():
         ("app/web/static/css/style.css", f"{RASPBERRY_PATH}/app/web/static/css/"),
         ("app/web/templates/verificacao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/edicao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
+        ("app/web/templates/palco.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("run.py", f"{RASPBERRY_PATH}/"),
         ("app/main.py", f"{RASPBERRY_PATH}/app/"),
     ]

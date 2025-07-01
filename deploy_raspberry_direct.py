@@ -12,7 +12,7 @@ import json
 
 # Configurações
 RASPBERRY_PATH = "/home/matheus/RaspMIDI"
-PC_IP = "192.168.15.7"  # IP do seu PC Windows
+PC_IP = "192.168.15.8"  # IP do seu PC Windows
 PC_PORT = 8000  # Porta para servir os arquivos
 
 def create_simple_server():

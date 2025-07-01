@@ -429,14 +429,14 @@ class DatabaseManager:
                     command_type=row[6],
                     zoom_bank=row[7],
                     zoom_patch=row[8],
-                    zoom_bank_letter=row[9],
-                    program=row[10],
-                    cc=row[11],
-                    value=row[12],
-                    note=row[13],
-                    velocity=row[14],
-                    created_at=row[15],
-                    updated_at=row[16]
+                    program=row[9],
+                    cc=row[10],
+                    value=row[11],
+                    note=row[12],
+                    velocity=row[13],
+                    created_at=row[14],
+                    updated_at=row[15],
+                    zoom_bank_letter=row[16]
                 ))
             return patches
     

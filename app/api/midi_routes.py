@@ -68,8 +68,8 @@ def load_patch():
                 'error': 'Patch não encontrado'
             }), 404
         
-        # Envia patch para o dispositivo configurado
-        success = midi_controller.send_patch(patch)
+        # Ativa o patch (envia para o dispositivo e salva como ativo)
+        success = midi_controller.activate_patch(patch)
         
         if success:
             # Retorna os dados completos do patch para o frontend

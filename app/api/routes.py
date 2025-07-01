@@ -488,46 +488,62 @@ def get_patches_by_channel(channel):
 def get_active_patch():
     """Obtém o patch atualmente ativo no sistema"""
     try:
-        db_manager = current_app.db_manager
-        active_bank = db_manager.get_active_bank()
-        if not active_bank:
-            return jsonify({
-                'success': True,
-                'data': {
-                    'bank': None,
-                    'active_patch': None,
-                    'last_command': None
-                },
-                'message': 'Nenhum banco ativo'
-            })
+        logger.info("🔍 [PATCH_ACTIVE_DEBUG] Iniciando busca por patch ativo...")
+        
         midi_controller = current_app.midi_controller
         last_command = None
         active_patch = None
+        
+        # Primeiro, verifica se há comandos MIDI recentes
         received_commands = midi_controller.get_received_commands()
+        logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Comandos MIDI recebidos: {len(received_commands) if received_commands else 0}")
+        
         if received_commands:
             for command in reversed(received_commands):
                 if command.get('type') == 'program_change' and command.get('program') is not None:
                     last_command = command
+                    logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Comando MIDI encontrado: {last_command}")
                     break
+        
+        # Se há comando MIDI recente, busca o patch correspondente
         if last_command and last_command.get('program') is not None:
             cache_manager = current_app.cache_manager
             patches = cache_manager.get_patches()
+            logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Total de patches no cache: {len(patches)}")
+            
             for patch in patches:
                 if (patch.get('input_device') == 'Chocolate MIDI' and 
                     patch.get('program') == last_command['program']):
                     active_patch = patch
+                    logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Patch encontrado via MIDI: {patch.get('name')}")
                     break
-        # Se não encontrou via comando MIDI, usa o último patch ativado via API
-        if not active_patch and hasattr(midi_controller, '_last_patch_activated') and midi_controller._last_patch_activated:
-            active_patch = midi_controller._last_patch_activated
-        return jsonify({
+        
+        # Se não encontrou via comando MIDI, usa o último patch ativado via API/disco
+        if not active_patch:
+            logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Verificando get_last_patch_activated...")
+            patch_from_disk = midi_controller.get_last_patch_activated()
+            if patch_from_disk:
+                active_patch = patch_from_disk
+                logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Patch encontrado via get_last_patch_activated: {active_patch.get('name')}")
+            else:
+                logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Nenhum patch ativo encontrado em memória ou disco")
+        
+        # Obtém o banco ativo apenas para informação (não é obrigatório)
+        db_manager = current_app.db_manager
+        active_bank = db_manager.get_active_bank()
+        
+        result = {
             'success': True,
             'data': {
                 'bank': active_bank.to_dict() if active_bank else None,
                 'active_patch': active_patch,
                 'last_command': last_command
             }
-        })
+        }
+        
+        logger.info(f"🔍 [PATCH_ACTIVE_DEBUG] Resultado final: active_patch = {active_patch.get('name') if active_patch else 'None'}")
+        
+        return jsonify(result)
     except Exception as e:
         logger.error(f"❌ Erro ao obter patch ativo: {str(e)}")
         return jsonify({
