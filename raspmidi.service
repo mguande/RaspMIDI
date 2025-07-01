@@ -1,17 +1,14 @@
 [Unit]
 Description=RaspMIDI Controlador MIDI
-After=network.target bluetooth.service
-Wants=bluetooth.service
+After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/RaspMIDI
-Environment=FLASK_CONFIG=production
-Environment=FLASK_ENV=production
-ExecStart=/usr/bin/python3 /home/pi/RaspMIDI/run.py
+User=matheus
+WorkingDirectory=/home/matheus/RaspMIDI
+ExecStart=/usr/bin/python3 /home/matheus/RaspMIDI/run.py
 Restart=always
-RestartSec=10
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target 
