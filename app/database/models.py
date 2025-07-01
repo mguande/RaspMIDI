@@ -347,6 +347,17 @@ class DatabaseManager:
                 )
             ''')
             
+            # Tabela de patches da Zoom
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS zoom_patches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    bank TEXT NOT NULL,
+                    number INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            ''')
+            
             conn.commit()
     
     def create_patch(self, patch: Patch) -> int:
@@ -689,4 +700,28 @@ class DatabaseManager:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM bank_mappings WHERE id = ?', (mapping_id,))
             conn.commit()
-            return cursor.rowcount > 0 
+            return cursor.rowcount > 0
+    
+    def save_zoom_patches(self, patches: list):
+        """Salva (substitui) todos os patches da Zoom na tabela"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM zoom_patches')
+            for patch in patches:
+                cursor.execute('''
+                    INSERT INTO zoom_patches (bank, number, name, updated_at)
+                    VALUES (?, ?, ?, ?)
+                ''', (
+                    patch['bank'],
+                    patch['number'],
+                    patch['name'],
+                    patch.get('updated_at') or datetime.now().isoformat()
+                ))
+            conn.commit()
+
+    def get_zoom_patches_by_bank(self, bank: str) -> list:
+        """Retorna todos os patches da Zoom para um banco (letra)"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT number, name FROM zoom_patches WHERE bank = ? ORDER BY number', (bank,))
+            return [{'number': row[0], 'name': row[1]} for row in cursor.fetchall()] 

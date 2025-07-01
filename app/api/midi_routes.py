@@ -70,15 +70,16 @@ def load_patch():
         success = midi_controller.send_patch(patch)
         
         if success:
+            # Retorna os dados completos do patch para o frontend
             return jsonify({
                 'success': True,
-                'message': f'Patch {patch["name"]} carregado com sucesso',
+                'message': f'Patch {patch.get("name", "Desconhecido")} carregado com sucesso',
                 'data': patch
             })
         else:
             return jsonify({
                 'success': False,
-                'error': 'Erro ao carregar patch'
+                'error': f'Falha ao enviar comando para o dispositivo {patch.get("output_device")}. Verifique se está conectado.'
             }), 500
         
     except Exception as e:
@@ -1393,4 +1394,44 @@ def chocolate_channel_selected(channel):
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500 
+        }), 500
+
+@midi_bp.route('/zoom/patches/update', methods=['POST'])
+def update_zoom_patches():
+    """Lê todos os patches da Zoom e salva na tabela zoom_patches e atualiza o cache"""
+    try:
+        bank_mapping = {
+            'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4,
+            'F': 5, 'G': 6, 'H': 7, 'I': 8, 'J': 9
+        }
+        midi_controller = current_app.midi_controller
+        db_manager = current_app.db_manager
+        cache_manager = current_app.cache_manager
+        all_patches = []
+        for bank_letter, bank_number in bank_mapping.items():
+            if midi_controller.zoom_g3x and midi_controller.device_status['zoom_g3x']['connected']:
+                patches = midi_controller.zoom_g3x.get_bank_patches(bank_number)
+                if patches:
+                    for patch in patches:
+                        all_patches.append({
+                            'bank': bank_letter,
+                            'number': patch['number'],
+                            'name': patch['name'],
+                        })
+        db_manager.save_zoom_patches(all_patches)
+        cache_manager.update_zoom_patches_cache()
+        return jsonify({'success': True, 'message': f'{len(all_patches)} patches da Zoom atualizados no banco e cache.'})
+    except Exception as e:
+        logger.error(f"Erro ao atualizar patches da Zoom: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@midi_bp.route('/zoom/patches_db/<bank_letter>', methods=['GET'])
+def get_zoom_patches_db(bank_letter):
+    """Retorna os patches da Zoom do cache para o banco informado"""
+    try:
+        cache_manager = current_app.cache_manager
+        patches = cache_manager.get_zoom_patches_by_bank(bank_letter)
+        return jsonify({'success': True, 'data': patches})
+    except Exception as e:
+        logger.error(f"Erro ao buscar patches da Zoom no cache: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500 

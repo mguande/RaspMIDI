@@ -236,6 +236,11 @@
                 Informações do Sistema
             </button>
             
+            <button class="verificacao-btn zoom-patches" onclick="updateZoomPatches()">
+                <i class="fas fa-sync-alt"></i>
+                Atualizar Patches da Zoom
+            </button>
+            
             <button class="verificacao-btn zoom-patches" onclick="testZoomPatchNames()">
                 <i class="fas fa-search"></i>
                 Testar Nomes dos Patches
@@ -484,6 +489,30 @@
                 
             } catch (error) {
                 addLogEntry(`Erro ao obter informações do sistema: ${error.message}`, 'error');
+            }
+        }
+        
+        async function updateZoomPatches() {
+            addLogEntry('Atualizando patches da Zoom G3X...', 'info');
+            addLogEntry('🔍 Lendo patches de todos os bancos (A-J) da Zoom...', 'info');
+            
+            try {
+                const response = await fetch('/api/midi/zoom/patches/update', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('✅ Patches da Zoom atualizados com sucesso!', 'success');
+                    addLogEntry(data.message, 'success');
+                    addLogEntry('💾 Dados salvos no banco de dados e cache atualizado.', 'info');
+                    addLogEntry('🎯 Agora os combos de patch usarão os nomes atualizados.', 'info');
+                } else {
+                    addLogEntry('❌ Erro ao atualizar patches da Zoom:', 'error');
+                    addLogEntry(data.error || 'Erro desconhecido', 'error');
+                }
+                
+            } catch (error) {
+                addLogEntry('❌ Erro na requisição de atualização:', 'error');
+                addLogEntry(error.message, 'error');
             }
         }
         

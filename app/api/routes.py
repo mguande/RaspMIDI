@@ -422,34 +422,29 @@ def get_used_zoom_patches():
     try:
         cache_manager = current_app.cache_manager
         patches = cache_manager.get_patches()
-        
+        print(f'[DEBUG_BACKEND] Total de patches no sistema: {len(patches)}')
+        print(f'[DEBUG_BACKEND] patches lidos do cache: {patches}')
         used_patches = []
         for patch in patches:
             if patch.get('zoom_bank') and patch.get('zoom_patch') is not None:
-                # Verifica se é um patch válido
                 try:
                     global_patch_number = int(patch['zoom_patch'])
                     bank_letter = patch['zoom_bank']
-                    if 0 <= global_patch_number <= 99:  # Zoom G3X tem 100 patches (0-99)
-                        # Converte número global para local (0-9)
+                    if 0 <= global_patch_number <= 99:
                         local_patch_number = global_patch_number % 10
-                        
-                        # Retorna combinação de banco + patch local
                         used_patches.append({
                             'bank': bank_letter,
-                            'patch': local_patch_number,  # Número local (0-9)
-                            'global_patch': global_patch_number,  # Número global (0-99)
+                            'patch': local_patch_number,
+                            'global_patch': global_patch_number,
                             'combination': f"{bank_letter}{local_patch_number}"
                         })
                 except (ValueError, TypeError):
-                    # Ignora valores que não são números válidos
                     continue
-        
+        print(f'[DEBUG_BACKEND] Patches usados da Zoom retornados: {used_patches}')
         return jsonify({
             'success': True,
             'data': used_patches
         })
-        
     except Exception as e:
         logger.error(f"Erro ao obter patches Zoom utilizados: {str(e)}")
         return jsonify({

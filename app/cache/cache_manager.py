@@ -41,23 +41,25 @@ class CacheManager:
         """Carrega todos os dados no cache"""
         try:
             self.logger.info("Carregando dados no cache...")
-            
             with self._lock:
                 db = get_db()
                 if not db:
                     self.logger.error("Banco de dados não inicializado")
                     return False
-                
                 # Carrega patches
                 patches = db.get_all_patches()
                 self._cache['patches'] = [patch.to_dict() for patch in patches]
                 self._cache_timestamps['patches'] = datetime.now()
-                
+                # Carrega patches da Zoom
+                zoom_patches = {}
+                for bank_letter in ['A','B','C','D','E','F','G','H','I','J']:
+                    zoom_patches[bank_letter] = db.get_zoom_patches_by_bank(bank_letter)
+                self._cache['zoom_patches'] = zoom_patches
+                self._cache_timestamps['zoom_patches'] = datetime.now()
                 # Carrega efeitos padrão do Zoom G3X
                 from app.config import Config
                 self._cache['effects'] = Config.ZOOM_EFFECTS
                 self._cache_timestamps['effects'] = datetime.now()
-                
                 # Carrega configurações
                 self._cache['config'] = {
                     'max_patches': Config.MAX_PATCHES,
@@ -65,13 +67,10 @@ class CacheManager:
                     'bluetooth_enabled': Config.BLUETOOTH_ENABLED
                 }
                 self._cache_timestamps['config'] = datetime.now()
-                
                 self._loaded = True
                 self._last_load_time = datetime.now()
-                
-                self.logger.info(f"Cache carregado com {len(patches)} patches")
+                self.logger.info(f"Cache carregado com {len(patches)} patches e patches da Zoom para {len(zoom_patches)} bancos")
                 return True
-                
         except Exception as e:
             self.logger.error(f"Erro ao carregar cache: {str(e)}")
             return False
@@ -287,4 +286,28 @@ class CacheManager:
 
     def get_active_patch(self) -> int:
         """Retorna o ID do patch ativo (ou None)"""
-        return getattr(self, '_active_patch_id', None) 
+        return getattr(self, '_active_patch_id', None)
+
+    def get_zoom_patches_by_bank(self, bank_letter: str) -> list:
+        """Obtém patches da Zoom do cache para um banco"""
+        if not self._is_cache_valid('zoom_patches'):
+            self._load_zoom_patches()
+        return self._cache.get('zoom_patches', {}).get(bank_letter, [])
+
+    def _load_zoom_patches(self):
+        """Recarrega patches da Zoom do banco para o cache"""
+        db = get_db()
+        if not db:
+            self.logger.error("Banco de dados não disponível para recarregar zoom_patches")
+            return
+        zoom_patches = {}
+        for bank_letter in ['A','B','C','D','E','F','G','H','I','J']:
+            zoom_patches[bank_letter] = db.get_zoom_patches_by_bank(bank_letter)
+        self._cache['zoom_patches'] = zoom_patches
+        self._cache_timestamps['zoom_patches'] = datetime.now()
+        self.logger.info("Patches da Zoom recarregados no cache")
+
+    def update_zoom_patches_cache(self):
+        """Atualiza o cache dos patches da Zoom (deve ser chamado após atualizar o banco)"""
+        with self._lock:
+            self._load_zoom_patches() 

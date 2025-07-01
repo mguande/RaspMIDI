@@ -26,10 +26,8 @@ class RaspMIDI {
         };
         
         // Log de comandos
-        this.commandLog = {
-            commands: [],
-            maxEntries: 50
-        };
+        this.commandLog = [];
+        this.MAX_LOG_ENTRIES = 50;
         
         // Polling MIDI
         this.midiPolling = {
@@ -641,8 +639,8 @@ class RaspMIDI {
         if (patch.command_type === 'pc') {
             commandTypeText = 'Program Change';
             commandIcon = '🎸';
-            if (patch.zoom_bank && patch.zoom_patch !== undefined) {
-                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.zoom_patch}`;
+            if (patch.zoom_bank && patch.program !== undefined) {
+                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.program}`;
             } else if (patch.program !== undefined) {
                 commandDetails = `<i class="fas fa-music"></i> Programa ${patch.program}`;
             }
@@ -667,8 +665,8 @@ class RaspMIDI {
         } else if (patch.command_type === 'effects_config') {
             commandTypeText = 'Configuração de Efeitos';
             commandIcon = '🎚️';
-            if (patch.zoom_bank && patch.zoom_patch !== undefined) {
-                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.zoom_patch}`;
+            if (patch.zoom_bank && patch.program !== undefined) {
+                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.program}`;
             }
         }
         
@@ -1266,22 +1264,6 @@ class RaspMIDI {
         // Não carrega nomes automaticamente!
     }
 
-    // Carregar patches da Zoom manualmente (ao clicar no botão)
-    async manualLoadZoomPatches() {
-        const bankSelect = document.getElementById('patch-zoom-bank');
-        const bankLetter = bankSelect ? bankSelect.value : '';
-        if (!bankLetter) {
-            this.showNotification('Selecione um banco antes de atualizar os nomes dos patches.', 'warning');
-            return;
-        }
-        const patchSelect = document.getElementById('patch-zoom-patch');
-        if (patchSelect) {
-            patchSelect.innerHTML = '<option value="">Carregando patches...</option>';
-            patchSelect.disabled = true;
-        }
-        await this.loadZoomPatchesForBank(bankLetter);
-    }
-
     // Carregar canais disponíveis para Chocolate (excluindo já usados)
     async loadAvailableChannels(excludePatchId = null) {
         try {
@@ -1317,66 +1299,58 @@ class RaspMIDI {
     // Carregar patches da Zoom para um banco específico
     async loadZoomPatchesForBank(bankLetter, excludePatchId = null) {
         try {
+            console.log('[DEBUG] Chamou loadZoomPatchesForBank para banco:', bankLetter);
             const patchSelect = document.getElementById('patch-zoom-patch');
             if (!patchSelect) return;
-            
+            patchSelect.innerHTML = '<option value="">Carregando patches...</option>';
+            patchSelect.disabled = true;
             // Primeiro, obtém os patches usados
             const usedPatchesResponse = await fetch(`${this.apiBase}/patches/used_zoom_patches`);
             const usedPatchesData = await usedPatchesResponse.json();
+            console.log('[DEBUG] used_zoom_patches response:', usedPatchesData);
             let usedPatches = usedPatchesData.success ? usedPatchesData.data : [];
-            
             // Filtra apenas os usados para o banco atual
-            const usedPatchesInBank = usedPatches.filter(p => p.bank === bankLetter).map(p => p.patch);
-            
-            // Se estamos editando um patch, remove o patch do próprio patch da lista de usados
+            const usedPatchesInBank = usedPatches.filter(p => p.bank === bankLetter).map(p => {
+                if (p.patch !== undefined) return p.patch;
+                if (p.zoom_patch !== undefined) return this.convertFromGlobalPatchNumber(p.zoom_patch).patch;
+                return undefined;
+            }).filter(x => x !== undefined);
+            console.log('[DEBUG] Patches usados neste banco:', usedPatchesInBank);
             if (excludePatchId) {
                 const currentPatch = this.patches.find(p => p.id === excludePatchId);
                 if (currentPatch && currentPatch.zoom_patch !== undefined && currentPatch.zoom_bank === bankLetter) {
-                    // Converte o número global para local para comparação
                     const localPatchNumber = this.convertFromGlobalPatchNumber(currentPatch.zoom_patch).patch;
-                    usedPatchesInBank.splice(usedPatchesInBank.indexOf(localPatchNumber), 1);
-                    console.log(`[Edição] Patch ${localPatchNumber} do banco ${bankLetter} será incluído na lista`);
+                    const idx = usedPatchesInBank.indexOf(localPatchNumber);
+                    if (idx !== -1) usedPatchesInBank.splice(idx, 1);
                 }
             }
-            
-            console.log(`[Novo Patch] Patches Zoom já utilizados no banco ${bankLetter}:`, usedPatchesInBank);
-            
-            // Depois, obtém os patches disponíveis para o banco
-            const response = await fetch(`${this.apiBase}/midi/zoom/patches/${bankLetter}`);
+            // Busca patches do banco de dados
+            const response = await fetch(`${this.apiBase}/midi/zoom/patches_db/${bankLetter}`);
             const data = await response.json();
-            
-            // Reabilita o combo e limpa
+            console.log('[DEBUG] /midi/zoom/patches_db response:', data);
             patchSelect.disabled = false;
             patchSelect.innerHTML = '<option value="">Selecione um patch...</option>';
-            
+            let patchesAdicionados = [];
             if (data.success && data.data) {
-                // Se conseguimos importar os nomes da Zoom
                 data.data.forEach((patch, index) => {
                     const patchNumber = parseInt(patch.number) || 0;
                     const patchName = patch.name || `Patch ${patchNumber}`;
-                    
-                    // Verifica se o patch já está sendo usado neste banco (usando número local 0-9)
-                    const localPatchNumber = patchNumber % 10; // Converte para número local (0-9)
-                    if (!usedPatchesInBank.includes(localPatchNumber)) {
-                        patchSelect.innerHTML += `<option value="${localPatchNumber}">${patchName}</option>`;
-                    } else {
-                        console.log(`[Novo Patch] Patch ${localPatchNumber} (${patchName}) já está em uso no banco ${bankLetter}`);
+                    if (!usedPatchesInBank.includes(patchNumber)) {
+                        patchSelect.innerHTML += `<option value="${patchNumber}">${patchName}</option>`;
+                        patchesAdicionados.push(patchNumber);
                     }
                 });
             } else {
-                // Fallback: patches padrão de 0 a 9 para cada banco
                 for (let i = 0; i < 10; i++) {
-                    // Verifica se o patch já está sendo usado neste banco
                     if (!usedPatchesInBank.includes(i)) {
                         patchSelect.innerHTML += `<option value="${i}">Patch ${i}</option>`;
-                    } else {
-                        console.log(`[Novo Patch] Patch ${i} já está em uso no banco ${bankLetter}`);
+                        patchesAdicionados.push(i);
                     }
                 }
             }
+            console.log('[DEBUG] Patches adicionados ao combo:', patchesAdicionados);
         } catch (e) {
             console.error('Erro ao carregar patches da Zoom:', e);
-            // Em caso de erro, reabilita o combo
             const patchSelect = document.getElementById('patch-zoom-patch');
             if (patchSelect) {
                 patchSelect.disabled = false;
@@ -1439,19 +1413,25 @@ class RaspMIDI {
             if (patchData.output_device.toLowerCase().includes('zoom')) {
                 console.log("🎸 Detectado dispositivo Zoom G3X");
                 const zoomBank = formData.get('zoom_bank');
-                const zoomPatch = formData.get('zoom_patch');
+                const localPatchNumber = formData.get('zoom_patch');
                 const enableEffectsConfig = formData.get('enable_effects_config');
-                console.log("🏦 Banco Zoom:", zoomBank, "Patch Zoom:", zoomPatch, "Config Efeitos:", enableEffectsConfig);
+                console.log("🏦 Banco Zoom:", zoomBank, "Patch Local:", localPatchNumber, "Config Efeitos:", enableEffectsConfig);
                 
-                if (zoomBank && zoomPatch) {
-                    patchData.zoom_bank = zoomBank; // Salva como letra (A, B, C, etc.)
+                if (zoomBank && localPatchNumber) {
+                    patchData.zoom_bank = zoomBank;
+                    patchData.program = parseInt(localPatchNumber); // Salva o número local (0-9)
                     
-                    // Converte patch local para número sequencial global
-                    const globalPatchNumber = this.convertToGlobalPatchNumber(zoomBank, zoomPatch);
-                    patchData.zoom_patch = globalPatchNumber;
-                    
-                    // Sempre usa o valor do combo de banco
-                    patchData.zoom_bank_letter = zoomBank;
+                    // Adiciona a letra do banco
+                    const zoomBankLetter = formData.get('zoom_bank_letter');
+                    if (zoomBankLetter) {
+                        patchData.zoom_bank_letter = zoomBankLetter.toUpperCase();
+                    } else {
+                        // Se não foi preenchido, usa o valor do banco selecionado
+                        patchData.zoom_bank_letter = zoomBank;
+                    }
+
+                    // Calcula e salva o número global do patch
+                    patchData.zoom_patch = this.convertToGlobalPatchNumber(zoomBank, localPatchNumber);
                     
                     // Define o tipo de comando baseado na configuração de efeitos
                     if (enableEffectsConfig) {
@@ -1465,7 +1445,6 @@ class RaspMIDI {
                     } else {
                         // Se não habilitada, é um comando de mudança de patch
                         patchData.command_type = 'pc';
-                        patchData.program = globalPatchNumber; // Usa o número global para MIDI
                         console.log("🎛️ Tipo de comando: Program Change (PC)");
                         
                         // Efeitos padrão (todos ligados) para mudança de patch
@@ -1483,12 +1462,11 @@ class RaspMIDI {
                     console.log("✅ Dados Zoom configurados:", {
                         zoom_bank: patchData.zoom_bank,
                         zoom_patch: patchData.zoom_patch,
-                        zoom_bank_letter: patchData.zoom_bank_letter,
-                        command_type: patchData.command_type,
-                        program: patchData.program
+                        program: patchData.program,
+                        command_type: patchData.command_type
                     });
                 } else {
-                    console.warn("⚠️ Dados Zoom incompletos - banco:", zoomBank, "patch:", zoomPatch);
+                    console.warn("⚠️ Dados Zoom incompletos - banco:", zoomBank, "patch:", localPatchNumber);
                 }
             } else {
                 console.log("🎛️ Dispositivo não-Zoom detectado");
@@ -1874,13 +1852,13 @@ class RaspMIDI {
             if (patchData.output_device.toLowerCase().includes('zoom')) {
                 console.log("🎸 Detectado dispositivo Zoom G3X");
                 const zoomBank = formData.get('zoom_bank');
-                const zoomPatch = formData.get('zoom_patch');
+                const localPatchNumber = formData.get('zoom_patch');
                 const enableEffectsConfig = formData.get('enable_effects_config');
-                console.log("🏦 Banco Zoom:", zoomBank, "Patch Zoom:", zoomPatch, "Config Efeitos:", enableEffectsConfig);
+                console.log("🏦 Banco Zoom:", zoomBank, "Patch Local:", localPatchNumber, "Config Efeitos:", enableEffectsConfig);
                 
-                if (zoomBank && zoomPatch) {
-                    patchData.zoom_bank = zoomBank; // Salva como letra (A, B, C, etc.)
-                    patchData.zoom_patch = parseInt(zoomPatch);
+                if (zoomBank && localPatchNumber) {
+                    patchData.zoom_bank = zoomBank;
+                    patchData.program = parseInt(localPatchNumber); // Salva o número local (0-9)
                     
                     // Adiciona a letra do banco
                     const zoomBankLetter = formData.get('zoom_bank_letter');
@@ -1890,6 +1868,9 @@ class RaspMIDI {
                         // Se não foi preenchido, usa o valor do banco selecionado
                         patchData.zoom_bank_letter = zoomBank;
                     }
+
+                    // Calcula e salva o número global do patch
+                    patchData.zoom_patch = this.convertToGlobalPatchNumber(zoomBank, localPatchNumber);
                     
                     // Define o tipo de comando baseado na configuração de efeitos
                     if (enableEffectsConfig) {
@@ -1903,7 +1884,6 @@ class RaspMIDI {
                     } else {
                         // Se não habilitada, é um comando de mudança de patch
                         patchData.command_type = 'pc';
-                        patchData.program = parseInt(zoomPatch);
                         console.log("🎛️ Tipo de comando: Program Change (PC)");
                         
                         // Efeitos padrão (todos ligados) para mudança de patch
@@ -1921,11 +1901,11 @@ class RaspMIDI {
                     console.log("✅ Dados Zoom configurados:", {
                         zoom_bank: patchData.zoom_bank,
                         zoom_patch: patchData.zoom_patch,
-                        command_type: patchData.command_type,
-                        program: patchData.program
+                        program: patchData.program,
+                        command_type: patchData.command_type
                     });
                 } else {
-                    console.warn("⚠️ Dados Zoom incompletos - banco:", zoomBank, "patch:", zoomPatch);
+                    console.warn("⚠️ Dados Zoom incompletos - banco:", zoomBank, "patch:", localPatchNumber);
                 }
             } else {
                 console.log("🎛️ Dispositivo não-Zoom detectado");
@@ -3471,18 +3451,35 @@ class RaspMIDI {
 
     // Cria uma linha para visualização em lista
     createPatchListRow(patch) {
-        return `<tr style="background:#23283a;border-bottom:1px solid #333;">
-            <td style="color:#ffb300;font-weight:600;">${patch.name || ''}</td>
-            <td>${patch.input_channel ?? ''}</td>
-            <td>${patch.input_device || ''}</td>
-            <td>${patch.zoom_bank ? patch.zoom_bank + (patch.zoom_patch !== undefined ? ' ' + (patch.zoom_patch % 10) : '') : ''}</td>
-            <td>${patch.output_device || ''}</td>
-            <td>
-                <button class="btn btn-info btn-small" title="Carregar Patch" onclick="app.activatePatch(${patch.id})"><i class="fas fa-play"></i></button>
-                <button class="btn btn-primary btn-small" onclick="app.editPatch(${patch.id})"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-danger btn-small" onclick="app.deletePatch(${patch.id})"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>`;
+        const inputChannel = patch.input_channel !== undefined ? patch.input_channel : '-';
+        let outputDetails = '';
+        // Se for patch da Zoom, sempre tenta mostrar banco/letra + número local
+        if ((patch.command_type === 'pc' || patch.command_type === 'effects_config') && patch.zoom_bank) {
+            let localPatch = (patch.program !== undefined && patch.program !== null) ? patch.program : undefined;
+            if ((localPatch === undefined || localPatch === null) && patch.zoom_patch !== undefined && patch.zoom_patch !== null) {
+                // Converte global para local
+                localPatch = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+            }
+            outputDetails = `${patch.zoom_bank} / ${localPatch !== undefined && localPatch !== null ? localPatch : '-'}`;
+        } else if (patch.command_type === 'pc' && patch.program !== undefined) {
+            outputDetails = `PC: ${patch.program}`;
+        } else if (patch.command_type === 'cc') {
+            outputDetails = `CC: ${patch.cc}=${patch.value}`;
+        }
+        return `
+            <tr>
+                <td>${patch.name}</td>
+                <td>${inputChannel}</td>
+                <td>${patch.input_device || '-'}</td>
+                <td>${outputDetails}</td>
+                <td>${patch.output_device || '-'}</td>
+                <td class="patch-actions">
+                    <button class="btn btn-success btn-small" onclick="app.loadPatch(${patch.id})">Carregar</button>
+                    <button class="btn btn-primary btn-small" onclick="app.editPatch(${patch.id})">Editar</button>
+                    <button class="btn btn-danger btn-small" onclick="app.deletePatch(${patch.id})">Deletar</button>
+                </td>
+            </tr>
+        `;
     }
 
     // Ativar patch na Zoom G3X ao clicar no botão

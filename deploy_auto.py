@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import paramiko
+import glob
 
 # Configurações do Raspberry Pi
 RASPBERRY_IP = "192.168.15.8"
@@ -28,9 +29,9 @@ def run_ssh_command(command, timeout=30):
         exit_code = stdout.channel.recv_exit_status()
         
         client.close()
-        return exit_code == 0, output, error
+        return exit_code, output, error
     except Exception as e:
-        return False, "", str(e)
+        return -1, "", str(e)
 
 def copy_file_to_raspberry(local_file, remote_path):
     """Copia arquivo para o Raspberry Pi usando paramiko"""
@@ -72,49 +73,56 @@ def restart_application():
     print("🔄 Reiniciando aplicação...")
     
     # Para o processo atual
-    success, output, error = run_ssh_command("pkill -f 'python run.py'")
-    if success:
-        print("✅ Processo anterior finalizado")
+    print("  - Finalizando processo existente (se houver)...")
+    exit_code, output, error = run_ssh_command("pkill -f 'python run.py'")
+    if exit_code == 0:
+        print("    ✅ Processo anterior finalizado.")
+    elif exit_code == 1:
+        print("    ℹ️  Aplicação não estava em execução.")
+    else:
+        print(f"    ⚠️  Erro ao tentar finalizar o processo: {error}")
     
     # Aguarda um pouco
     time.sleep(2)
     
     # Inicia a aplicação
-    start_cmd = f"cd {RASPBERRY_PATH} && source venv/bin/activate && nohup python run.py > logs/app.log 2>&1 &"
-    success, output, error = run_ssh_command(start_cmd)
+    print("  - Iniciando a aplicação em background...")
+    start_cmd = f"cd {RASPBERRY_PATH} && nohup {RASPBERRY_PATH}/venv/bin/python run.py > logs/app.log 2>&1 &"
+    exit_code, output, error = run_ssh_command(start_cmd)
     
-    if success:
-        print("✅ Aplicação reiniciada com sucesso")
-        print(f"🌐 Acesse: http://{RASPBERRY_IP}:5000")
+    if exit_code == 0:
+        print("    ✅ Comando de inicialização enviado com sucesso.")
     else:
-        print(f"❌ Erro ao reiniciar aplicação: {error}")
-    
-    return success
+        print(f"    ⚠️  Comando de inicialização retornou código {exit_code}. A verificação de status confirmará o sucesso.")
+        if error:
+            print(f"       Erro reportado: {error}")
+
+    return True
 
 def check_application_status():
     """Verifica o status da aplicação"""
     print("🔍 Verificando status da aplicação...")
     
-    success, output, error = run_ssh_command("ps aux | grep 'python run.py' | grep -v grep")
+    exit_code, output, error = run_ssh_command("ps aux | grep 'python run.py' | grep -v grep")
     
-    if success and output:
+    if exit_code == 0 and output:
         print("✅ Aplicação está rodando")
         print("📋 Processos:")
         for line in output.split('\n'):
             if line.strip():
                 print(f"   {line}")
+        return True
     else:
         print("❌ Aplicação não está rodando")
-    
-    return success
+        return False
 
 def test_api():
     """Testa se a API está funcionando"""
     print("🔍 Testando API...")
     
-    success, output, error = run_ssh_command("curl -s http://localhost:5000/api/midi/devices/list")
+    exit_code, output, error = run_ssh_command("curl -s http://localhost:5000/api/midi/devices/list")
     
-    if success and output and 'success' in output:
+    if exit_code == 0 and output and 'success' in output:
         print("✅ API está funcionando!")
         print("📋 Resposta da API:")
         print(output[:200] + "..." if len(output) > 200 else output)
@@ -124,6 +132,20 @@ def test_api():
         print(f"Resposta: {output}")
         return False
 
+def read_remote_logs():
+    """Lê as últimas 50 linhas do log remoto"""
+    print("📄 Lendo logs remotos...")
+    command = "tail -n 50 /home/matheus/RaspMIDI/logs/app.log"
+    exit_code, output, error = run_ssh_command(command)
+    
+    if exit_code == 0:
+        print("✅ Logs recebidos:")
+        print("="*50)
+        print(output)
+        print("="*50)
+    else:
+        print(f"❌ Erro ao ler logs: {error}")
+
 def main():
     """Função principal"""
     print("🚀 Deploy automático para Raspberry Pi")
@@ -131,14 +153,19 @@ def main():
     print(f"👤 Usuário: {RASPBERRY_USER}")
     print()
     
-    # Deploy dos arquivos principais
+    # Deploy dos arquivos principais e todos os .py relevantes
     files_to_deploy = [
         ("app/web/static/js/app.js", f"{RASPBERRY_PATH}/app/web/static/js/"),
         ("app/web/static/css/style.css", f"{RASPBERRY_PATH}/app/web/static/css/"),
-        ("app/main.py", f"{RASPBERRY_PATH}/app/"),
-        ("app/midi/controller.py", f"{RASPBERRY_PATH}/app/midi/"),
+        ("app/web/templates/verificacao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
+        ("app/web/templates/edicao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("run.py", f"{RASPBERRY_PATH}/"),
+        ("app/main.py", f"{RASPBERRY_PATH}/app/"),
     ]
+    # Adiciona todos os .py das pastas backend
+    for folder in ["app/database", "app/cache", "app/api", "app/midi"]:
+        for pyfile in glob.glob(f"{folder}/*.py"):
+            files_to_deploy.append((pyfile, f"{RASPBERRY_PATH}/{folder.replace('app/', 'app/')}/"))
     
     all_success = True
     for local_file, remote_path in files_to_deploy:
@@ -151,14 +178,19 @@ def main():
         
         # Aguarda um pouco e verifica o status
         time.sleep(3)
-        check_application_status()
+        if not check_application_status():
+            all_success = False
         
         # Testa a API
-        test_api()
+        if not test_api():
+            all_success = False
         
-        print("\n🎉 Deploy concluído!")
+        if all_success:
+            print("\n🎉 Deploy concluído com sucesso!")
+        else:
+            print("\n❌ Deploy concluído com falhas.")
     else:
-        print("\n❌ Deploy falhou!")
+        print("\n❌ Deploy falhou na cópia de arquivos!")
     
     return all_success
 

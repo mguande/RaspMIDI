@@ -823,10 +823,7 @@
                             document.getElementById('bank-name').textContent = activeBank.name;
                         }
                         
-                        // PRIMEIRO: Envia comando para a Zoom G3X
-                        await sendPatchToZoom(patch);
-                        
-                        // DEPOIS: Ativa o patch no sistema
+                        // Ativa o patch no sistema (isso já envia para a Zoom se necessário)
                         await activatePatch(patch);
                     } else {
                         console.log(`❌ Nenhum patch encontrado para program ${program}`);
@@ -848,10 +845,7 @@
                                 document.getElementById('bank-name').textContent = activeBank.name;
                             }
                             
-                            // PRIMEIRO: Envia comando para a Zoom G3X
-                            await sendPatchToZoom(patch);
-                            
-                            // DEPOIS: Ativa o patch no sistema
+                            // Ativa o patch no sistema (isso já envia para a Zoom se necessário)
                             await activatePatch(patch);
                         } else {
                             // Mostra a mensagem no título
@@ -871,45 +865,6 @@
                 
                 // Limpa o display da Zoom em caso de erro
                 updateZoomDisplay('-', '-', false);
-            }
-        }
-        
-        async function sendPatchToZoom(patch) {
-            try {
-                console.log(`🎛️ Enviando patch ${patch.name} para Zoom G3X...`);
-                
-                // Verifica se o patch tem configuração da Zoom
-                if (patch.zoom_bank !== undefined && patch.zoom_patch !== undefined) {
-                    const bank = patch.zoom_bank;
-                    const patchNumber = patch.zoom_patch;
-                    
-                    console.log(`🎛️ Zoom Bank: ${bank}, Patch: ${patchNumber}`);
-                    
-                    // Envia comando Program Change para a Zoom
-                    const response = await fetch('/api/midi/pc', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            channel: 0,
-                            program: patchNumber
-                        })
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        console.log(`✅ Comando enviado para Zoom G3X: Bank ${bank}, Patch ${patchNumber}`);
-                    } else {
-                        console.error('❌ Erro ao enviar comando para Zoom G3X:', data.error);
-                    }
-                } else {
-                    console.log('⚠️ Patch não tem configuração da Zoom G3X');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro ao enviar patch para Zoom G3X:', error);
             }
         }
         

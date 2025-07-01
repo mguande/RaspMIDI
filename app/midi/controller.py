@@ -10,6 +10,7 @@ import json
 import os
 from typing import Dict, List, Optional
 import mido
+from app.main import _app_instance as app
 
 from app.config import Config
 from app.midi.zoom_g3x import ZoomG3XController
@@ -620,67 +621,72 @@ class MIDIController:
         return self.midi_config.copy()
     
     def update_midi_config(self, config: Dict) -> bool:
-        """Atualiza configuração MIDI"""
-        try:
-            self.midi_config.update(config)
+        """Atualiza a configuração MIDI"""
+        with self._lock:
+            # Atualiza apenas as chaves permitidas
+            allowed_keys = ['input_device', 'output_device', 'auto_connect']
+            for key in allowed_keys:
+                if key in config:
+                    self.midi_config[key] = config[key]
+            
+            self.logger.info(f"Configuração MIDI atualizada: {self.midi_config}")
             self._save_midi_config()
             
-            # Reconecta dispositivos se necessário
-            if 'input_device' in config or 'output_device' in config:
-                self._connect_configured_devices()
+            # Reconecta dispositivos com a nova configuração
+            self._connect_configured_devices()
             
-            self.logger.info("Configuração MIDI atualizada")
             return True
-            
-        except Exception as e:
-            self.logger.error(f"Erro ao atualizar configuração MIDI: {str(e)}")
-            return False
     
     def send_patch(self, patch_data: Dict) -> bool:
-        """Envia patch para o dispositivo de saída configurado"""
-        try:
-            output_device = self.midi_config.get('output_device')
-            if not output_device:
-                self.logger.error("Nenhum dispositivo de saída configurado")
-                return False
-            # Envia para o dispositivo apropriado
-            if 'zoom' in output_device.lower() or 'g3x' in output_device.lower():
-                if not self.zoom_g3x or not self.device_status['zoom_g3x']['connected']:
-                    self.logger.error("Zoom G3X não está conectado")
+        """Envia os comandos de um patch para o dispositivo de saída configurado"""
+        with self._lock:
+            try:
+                command_type = patch_data.get('command_type')
+                device_name = patch_data.get('output_device')
+                self.logger.info(f"[PATCH DEBUG] Dados completos do patch recebido: {patch_data}")
+                self.logger.info(f"Enviando patch '{patch_data.get('name')}' para {device_name} (tipo: {command_type})")
+                if not device_name:
+                    self.logger.error("Dispositivo de saída não definido no patch")
                     return False
-                success = self.zoom_g3x.load_patch(patch_data)
-            elif 'chocolate' in output_device.lower():
-                if not self.chocolate or not self.device_status['chocolate']['connected']:
-                    self.logger.error("Chocolate não está conectado")
-                    return False
-                # Implementar envio de patch para Chocolate se necessário
-                success = True
-            else:
-                self.logger.error(f"Dispositivo de saída não reconhecido: {output_device}")
+                # Delega para o controlador Zoom G3X se for o caso
+                if self.zoom_g3x and getattr(self.zoom_g3x, 'connected', False) and ('zoom' in device_name.lower() or 'g3x' in device_name.lower()):
+                    self.logger.info(f"[PATCH DEBUG] Enviando para Zoom G3X: {patch_data}")
+                    return self.zoom_g3x.load_patch(patch_data)
+                # Lógica para comandos MIDI genéricos
+                if command_type == 'pc':
+                    program = patch_data.get('program')
+                    channel = patch_data.get('channel', 1) # Canal padrão 1
+                    self.logger.info(f"[PATCH DEBUG] Montando comando PC: channel={channel}, program={program}, device={device_name}")
+                    if program is not None:
+                        return self._send_pc_to_device(channel, program, device_name)
+                elif command_type == 'cc':
+                    cc = patch_data.get('cc')
+                    value = patch_data.get('value')
+                    channel = patch_data.get('channel', 1) # Canal padrão 1
+                    self.logger.info(f"[PATCH DEBUG] Montando comando CC: channel={channel}, cc={cc}, value={value}, device={device_name}")
+                    if cc is not None and value is not None:
+                        return self._send_cc_to_device(channel, cc, value, device_name)
+                elif command_type == 'note_on':
+                    note = patch_data.get('note')
+                    velocity = patch_data.get('velocity', 127) # Velocidade padrão
+                    channel = patch_data.get('channel', 1) # Canal padrão 1
+                    self.logger.info(f"[PATCH DEBUG] Montando comando Note On: channel={channel}, note={note}, velocity={velocity}, device={device_name}")
+                    if note is not None:
+                        return self._send_note_on_to_device(channel, note, velocity, device_name)
+                elif command_type == 'note_off':
+                    note = patch_data.get('note')
+                    channel = patch_data.get('channel', 1) # Canal padrão 1
+                    self.logger.info(f"[PATCH DEBUG] Montando comando Note Off: channel={channel}, note={note}, device={device_name}")
+                    if note is not None:
+                        return self._send_note_off_to_device(channel, note, device_name)
+                self.logger.warning(f"Tipo de comando '{command_type}' não suportado ou dados insuficientes para o patch.")
                 return False
-            if success:
-                self.logger.info(f"Patch {patch_data.get('name', 'Unknown')} enviado para {output_device}")
-                # Busca patch completo do cache se possível
-                try:
-                    from flask import current_app
-                    cache_manager = getattr(current_app, 'cache_manager', None)
-                    if cache_manager and 'id' in patch_data:
-                        patch_full = cache_manager.get_patch(patch_data['id'])
-                        if patch_full:
-                            self._last_patch_activated = patch_full
-                        else:
-                            self._last_patch_activated = patch_data
-                    else:
-                        self._last_patch_activated = patch_data
-                except Exception:
-                    self._last_patch_activated = patch_data
-            return success
-        except Exception as e:
-            self.logger.error(f"Erro ao enviar patch: {str(e)}")
-            return False
+            except Exception as e:
+                self.logger.error(f"Erro ao enviar patch: {str(e)}")
+                return False
     
     def toggle_effect(self, effect_name: str, enabled: bool) -> bool:
-        """Liga/desliga um efeito no dispositivo de saída configurado"""
+        """Liga/desliga um efeito no dispositivo configurado"""
         try:
             output_device = self.midi_config.get('output_device')
             
@@ -1202,8 +1208,7 @@ class MIDIController:
             # Se for Program Change, ativa o patch correspondente do Chocolate
             if message.type == 'program_change':
                 try:
-                    from flask import current_app
-                    cache_manager = getattr(current_app, 'cache_manager', None)
+                    cache_manager = getattr(app, 'cache_manager', None)
                     if cache_manager:
                         patches = cache_manager.get_patches()
                         for patch in patches:
@@ -1212,7 +1217,8 @@ class MIDIController:
                                 int(patch.get('input_channel', -1)) == int(command['program'])
                             ):
                                 self.logger.info(f"Ativando patch via Program Change do Chocolate: {patch['name']}")
-                                self.send_patch(patch)
+                                with app.app_context():
+                                    self.send_patch(patch)
                                 self._last_patch_activated = patch
                                 break
                 except Exception as e:

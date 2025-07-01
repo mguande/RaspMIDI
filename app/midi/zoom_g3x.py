@@ -19,6 +19,7 @@ class ZoomG3XController:
         self.port = None
         self.connected = False
         self.effects = Config.ZOOM_EFFECTS
+        self.device_name = None  # Adicionado para compatibilidade com controller.py
         
         # Device ID para Zoom G3X (baseado na documentação MS-50G+)
         self.device_id = 0x6E
@@ -42,6 +43,7 @@ class ZoomG3XController:
             # Tenta abrir a porta com timeout
             self.port = mido.open_output(port_name)
             self.connected = True
+            self.device_name = port_name  # Salva o nome da porta conectada
             self.logger.info(f"Zoom G3X conectado na porta: {port_name}")
             
             # Testa se a conexão está funcionando com Identity Request
@@ -132,32 +134,46 @@ class ZoomG3XController:
             self.logger.error(f"Erro ao desconectar Zoom G3X: {str(e)}")
     
     def load_patch(self, patch_data: Dict) -> bool:
-        """Carrega um patch no Zoom G3X"""
+        """Carrega um patch no Zoom G3X, enviando PC e configurando efeitos."""
         try:
             if not self.connected:
                 self.logger.error("Zoom G3X não está conectado")
                 return False
+
+            command_type = patch_data.get('command_type', 'pc')
+            self.logger.info(f"Carregando patch '{patch_data.get('name')}' (Tipo: {command_type})")
+
+            # 1. Usa 'zoom_patch' como a fonte definitiva para o número do programa global
+            program_number = patch_data.get('zoom_patch')
+
+            if program_number is None:
+                self.logger.error("Patch da Zoom não contém a chave 'zoom_patch' com o número global.")
+                return False
+
+            # Envia o comando PC
+            if not self.send_pc(0, int(program_number)):
+                self.logger.error(f"Falha ao enviar Program Change {program_number}")
+                return False
             
+            # Pequena pausa para o pedal processar a mudança de patch
+            time.sleep(0.1)
+
+            # 2. Configura os efeitos (ligado/desligado)
             effects = patch_data.get('effects', {})
+            if effects:
+                self.logger.info("Configurando efeitos...")
+                for effect_name, effect_params in effects.items():
+                    if effect_name in self.effects and 'enabled' in effect_params:
+                        cc_number = self.effects[effect_name]['cc']
+                        value = 127 if effect_params['enabled'] else 0
+                        self.send_cc(0, cc_number, value)
+                        time.sleep(0.05)  # Pequena pausa entre comandos CC
             
-            # Aplica cada efeito do patch
-            for effect_name, effect_params in effects.items():
-                if effect_name in self.effects:
-                    cc_number = self.effects[effect_name]['cc']
-                    enabled = effect_params.get('enabled', False)
-                    
-                    # Envia CC para ligar/desligar efeito
-                    value = 127 if enabled else 0
-                    self.send_cc(0, cc_number, value)
-                    
-                    # Envia parâmetros específicos do efeito
-                    self._send_effect_parameters(effect_name, effect_params)
-            
-            self.logger.info(f"Patch {patch_data.get('name', 'Unknown')} carregado")
+            self.logger.info(f"Patch '{patch_data.get('name', 'Unknown')}' carregado com sucesso")
             return True
             
         except Exception as e:
-            self.logger.error(f"Erro ao carregar patch: {str(e)}")
+            self.logger.error(f"Erro ao carregar patch: {str(e)}", exc_info=True)
             return False
     
     def toggle_effect(self, effect_name: str, enabled: bool) -> bool:

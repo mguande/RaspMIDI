@@ -397,9 +397,7 @@
                                 <button class="btn btn-primary" onclick="app.showNewPatchModal()">
                                     <i class="fas fa-plus"></i> Novo Patch
                                 </button>
-                                <button class="btn btn-secondary" onclick="app.refreshZoomPatches()">
-                                    <i class="fas fa-sync-alt"></i> Atualizar Patches Zoom
-                                </button>
+                                <label for="patch-sort-mode" style="margin-bottom:0; font-weight:500;">Ordenação</label>
                                 <select id="patch-sort-mode" class="form-input" style="min-width: 120px; max-width: 160px; font-size: 0.95rem; padding: 6px 8px;">
                                     <option value="input">Canal Entrada</option>
                                     <option value="output">Banco/Patch Saída</option>
@@ -880,7 +878,7 @@
                     <div id="output-zoom-section" style="display: none;">
                         <div class="form-group">
                             <label for="patch-zoom-bank">Banco de Patches</label>
-                            <select id="patch-zoom-bank" name="zoom_bank" class="form-input" onchange="app.handleZoomBankChange(this.value)">
+                            <select id="patch-zoom-bank" name="zoom_bank" class="form-input" onchange="app.handleZoomBankChange(this.value); app.loadZoomPatchesForBank(this.value)">
                                 <option value="">Selecione um banco...</option>
                                 <option value="A">Banco A</option>
                                 <option value="B">Banco B</option>
@@ -902,9 +900,6 @@
                                 </select>
                                 <small class="form-help">Patches já utilizados em outros patches foram excluídos da lista</small>
                             </div>
-                            <button type="button" class="btn btn-info btn-small" id="btn-refresh-zoom-patches" style="margin-top: 22px;" onclick="app.manualLoadZoomPatches()">
-                                <i class="fas fa-sync-alt"></i> Atualizar nomes dos patches da Zoom
-                            </button>
                         </div>
                         
                         <!-- Configuração de Efeitos -->

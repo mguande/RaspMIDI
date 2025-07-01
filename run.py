@@ -44,6 +44,8 @@ def main():
     try:
         # Cria a aplicação Flask
         app = create_app()
+        import app.main
+        app.main._app_instance = app  # Torna acessível globalmente
         
         # Configurações
         host = Config.HOST
