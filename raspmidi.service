@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=matheus
 WorkingDirectory=/home/matheus/RaspMIDI
-ExecStart=/usr/bin/python3 /home/matheus/RaspMIDI/run.py
+ExecStart=/home/matheus/RaspMIDI/venv/bin/python /home/matheus/RaspMIDI/run.py
 Restart=always
 RestartSec=5
 
