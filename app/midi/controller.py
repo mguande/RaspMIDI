@@ -1482,6 +1482,31 @@ class MIDIController:
             self.logger.error(f"Erro ao enviar SysEx: {str(e)}")
             return False
 
+    def send_sysex_patch(self, patch_number: int, device_name: str = None) -> bool:
+        """Envia comando SysEx para selecionar patch específico"""
+        try:
+            output_device = device_name or self.midi_config.get('output_device')
+            if not output_device:
+                self.logger.error("Nenhum dispositivo de saída configurado")
+                return False
+            
+            # Se for Zoom G3X, usa o controlador específico
+            if 'zoom' in output_device.lower() or 'g3x' in output_device.lower():
+                if self.zoom_g3x and hasattr(self.zoom_g3x, 'send_sysex_patch'):
+                    return self.zoom_g3x.send_sysex_patch(patch_number)
+                else:
+                    self.logger.error("Controlador Zoom G3X não está disponível")
+                    return False
+            
+            # Para outros dispositivos, usa comando SysEx genérico
+            # Comando SysEx para selecionar patch: F0 52 00 5A 09 00 00 <patch> F7
+            sysex_data = [0x52, 0x00, 0x5A, 0x09, 0x00, 0x00, patch_number]
+            return self.send_sysex(sysex_data, output_device)
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar SysEx patch selection: {str(e)}")
+            return False
+
     def send_patch_select(self, ff: int, ss: int, device_name: str = None) -> bool:
         """Envia comando para selecionar patch (B0 20 ff C0 ss)"""
         try:

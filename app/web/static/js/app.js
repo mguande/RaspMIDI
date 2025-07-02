@@ -208,25 +208,31 @@ class RaspMIDI {
         document.getElementById('btn-zoom-tuner-on')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
             if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            await sendZoomTuner(device);
+            await sendZoomTuner(device, true);
         });
         document.getElementById('btn-zoom-tuner-off')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
             if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            await sendZoomTuner(device);
+            await sendZoomTuner(device, false);
         });
-        async function sendZoomTuner(device) {
+        async function sendZoomTuner(device, enabled = true) {
             try {
                 const resp = await fetch('/api/midi/sysex/tuner', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device })
+                    body: JSON.stringify({ 
+                        device: device,
+                        enabled: enabled 
+                    })
                 });
                 const data = await resp.json();
-                if (data.success) showNotification('Comando de afinador enviado!', 'success');
-                else showNotification('Erro ao enviar comando de afinador: ' + data.error, 'error');
+                if (data.success) {
+                    showNotification(data.message || `Afinador ${enabled ? 'ligado' : 'desligado'}!`, 'success');
+                } else {
+                    showNotification('Erro ao controlar afinador: ' + data.error, 'error');
+                }
             } catch (e) {
-                showNotification('Erro ao enviar comando de afinador', 'error');
+                showNotification('Erro ao controlar afinador: ' + e.message, 'error');
             }
         }
 
@@ -269,10 +275,13 @@ class RaspMIDI {
                     body: JSON.stringify({ device, block, state })
                 });
                 const data = await resp.json();
-                if (data.success) showNotification('Comando de efeito enviado!', 'success');
-                else showNotification('Erro ao enviar comando de efeito: ' + data.error, 'error');
+                if (data.success) {
+                    showNotification(data.message || `Bloco de efeito ${block} ${state ? 'ligado' : 'desligado'}!`, 'success');
+                } else {
+                    showNotification('Erro ao controlar bloco de efeito: ' + data.error, 'error');
+                }
             } catch (e) {
-                showNotification('Erro ao enviar comando de efeito', 'error');
+                showNotification('Erro ao controlar bloco de efeito: ' + e.message, 'error');
             }
         }
     }
@@ -3569,13 +3578,13 @@ class RaspMIDI {
             }
         };
         btnExample.onclick = () => {
-            document.getElementById('sysex-command').value = 'F0 52 00 6E 09 00 00 22 F7';
-            this.logSysEx('# Exemplo carregado: Carregar patch C2 (SysEx para Zoom G3X)');
+            document.getElementById('sysex-command').value = 'F0 52 00 5A 09 00 00 22 F7';
+            this.logSysEx('# Exemplo carregado: Carregar patch C2 (SysEx correto para Zoom G3X)');
         };
         btnAutomate.onclick = async () => {
             this.logSysEx('# Automatizando: Enviando patches C0 a C9');
             for (let i = 0; i < 10; i++) {
-                const hex = `F0 52 00 6E 09 00 00 ${((2*10)+i).toString(16).padStart(2,'0').toUpperCase()} F7`;
+                const hex = `F0 52 00 5A 09 00 00 ${((2*10)+i).toString(16).padStart(2,'0').toUpperCase()} F7`;
                 document.getElementById('sysex-command').value = hex;
                 await new Promise(r => setTimeout(r, 400));
                 btnSend.click();

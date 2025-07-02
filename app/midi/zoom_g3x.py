@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 RaspMIDI - Controlador Zoom G3X
-Baseado na documentação do zoom-explorer para MS-50G+ (device ID 6E)
+Baseado na documentação do JavaPedalMIDI para G3X (device ID 5A)
 """
 
 import logging
@@ -12,7 +12,7 @@ from typing import Dict, Optional, List
 from app.config import Config
 
 class ZoomG3XController:
-    """Controlador específico para Zoom G3X usando comandos SysEx documentados"""
+    """Controlador específico para Zoom G3X usando comandos SysEx documentados do JavaPedalMIDI"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
@@ -21,19 +21,28 @@ class ZoomG3XController:
         self.effects = Config.ZOOM_EFFECTS
         self.device_name = None  # Adicionado para compatibilidade com controller.py
         
-        # Device ID para Zoom G3X (baseado na documentação MS-50G+)
-        self.device_id = 0x6E
+        # Device ID para Zoom G3X (corrigido baseado no JavaPedalMIDI)
+        self.device_id = 0x5A  # G3X usa 0x5A, não 0x6E
         
-        # Comandos SysEx documentados
+        # Comandos SysEx corretos baseados no JavaPedalMIDI
         self.sysex_commands = {
             'identity_request': [0x7E, 0x7F, 0x06, 0x01],  # MIDI Identity Request
-            'get_patch_info': [0x52, 0x00, 0x6E, 0x06],    # Get patch info (MS-50G+ command)
-            'get_patch_name': [0x52, 0x00, 0x6E, 0x09],    # Get patch name (MS-50G+ command)
-            'get_current_patch': [0x52, 0x00, 0x6E, 0x29], # Get current patch (MS-50G+ command)
-            'get_bank_patch': [0x52, 0x00, 0x6E, 0x08],    # Get bank patch (MS-50G+ command)
+            'request_current_patch_number': [0x52, 0x00, 0x5A, 0x33],  # Request current patch number
+            'request_current_patch_details': [0x52, 0x00, 0x5A, 0x29],  # Request current patch details
+            'request_specific_patch_details': [0x52, 0x00, 0x5A, 0x09],  # Request specific patch details
+            'lissen_me': [0x52, 0x00, 0x5A, 0x50],  # Lissen me command
+            'you_can_talk': [0x52, 0x00, 0x5A, 0x16],  # You can talk command
+            'set_effect_status': [0x52, 0x00, 0x5A, 0x31],  # Set effect status
+            'set_effect_param': [0x52, 0x00, 0x5A, 0x31],  # Set effect parameter
+            'change_effect': [0x52, 0x00, 0x5A, 0x31],  # Change effect type
         }
         
-        self.logger.info("Controlador Zoom G3X inicializado com comandos SysEx documentados")
+        # Constantes para manipulação de efeitos
+        self.SET_STATUS = 0
+        self.CHANGE_EFFECT = 1
+        self.PARAM_EFFECT = 2  # Base para parâmetros
+        
+        self.logger.info("Controlador Zoom G3X inicializado com comandos SysEx corretos do JavaPedalMIDI")
     
     def connect(self, port_name: str) -> bool:
         """Conecta ao Zoom G3X"""
@@ -98,7 +107,7 @@ class ZoomG3XController:
             # Tenta ler resposta (se disponível)
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
                 if msg.type == 'sysex' and len(msg.data) >= 7:
-                    # Resposta esperada: F0 7E 00 06 02 52 6E 00 23 00 31 2E 31 30 F7
+                    # Resposta esperada: F0 7E 00 06 02 52 5A 00 23 00 31 2E 31 30 F7
                     if msg.data[0] == 0x7E and msg.data[2] == 0x06 and msg.data[3] == 0x02:
                         manufacturer = msg.data[4]
                         family_code = msg.data[5:7]
@@ -180,7 +189,7 @@ class ZoomG3XController:
             return False
     
     def toggle_effect(self, effect_name: str, enabled: bool) -> bool:
-        """Liga/desliga um efeito específico"""
+        """Liga/desliga um efeito específico usando comandos SysEx corretos"""
         try:
             if not self.connected:
                 self.logger.error("Zoom G3X não está conectado")
@@ -190,18 +199,49 @@ class ZoomG3XController:
                 self.logger.error(f"Efeito {effect_name} não encontrado")
                 return False
             
-            cc_number = self.effects[effect_name]['cc']
-            value = 127 if enabled else 0
+            effect_id = self.effects[effect_name]['cc']  # Usa CC como ID do efeito
+            value = 1 if enabled else 0
             
-            success = self.send_cc(0, cc_number, value)
+            # Usa comando SysEx correto: F0 52 00 5A 31 <effect> 00 <value> <value2> F7
+            success = self._manipulate_effect(effect_id, self.SET_STATUS, value)
+            
             if success:
                 status = "ligado" if enabled else "desligado"
-                self.logger.info(f"Efeito {effect_name} {status}")
+                self.logger.info(f"Efeito {effect_name} {status} via SysEx")
             
             return success
             
         except Exception as e:
             self.logger.error(f"Erro ao alternar efeito: {str(e)}")
+            return False
+    
+    def _manipulate_effect(self, effect: int, type: int, value: int) -> bool:
+        """Manipula efeito usando comando SysEx correto do JavaPedalMIDI"""
+        try:
+            if not self.connected or self.port is None:
+                return False
+
+            # Calcula value2 (parte alta do valor)
+            value2 = value // 128
+            value = value % 128
+
+            # Comando SysEx: F0 52 00 5A 31 <effect> <type> <value> <value2> F7
+            sysex_data = [
+                0x52, 0x00, 0x5A, 0x31,  # Header
+                effect,                   # Effect ID
+                type,                     # Type (0=status, 1=change, 2+=param)
+                value,                    # Value LSB
+                value2                    # Value MSB
+            ]
+            
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            
+            self.logger.debug(f"SysEx effect command enviado: {sysex_data}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar comando SysEx de efeito: {str(e)}")
             return False
     
     def send_cc(self, channel: int, cc: int, value: int) -> bool:
@@ -237,6 +277,63 @@ class ZoomG3XController:
             self.logger.error(f"[ZOOM DEBUG] ❌ Erro ao enviar PC: {str(e)}")
             return False
     
+    def send_sysex_patch(self, patch_number: int) -> bool:
+        """Envia comando SysEx para selecionar patch específico"""
+        try:
+            if not self.connected or self.port is None:
+                return False
+
+            # Comando SysEx para selecionar patch específico: F0 52 00 5A 09 00 00 <patch> F7
+            sysex_data = self.sysex_commands['request_specific_patch_details'] + [0x00, 0x00, patch_number]
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            
+            self.logger.info(f"SysEx patch selection enviado: patch {patch_number}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar SysEx patch selection: {str(e)}")
+            return False
+    
+    def send_sysex_tuner(self, enabled: bool) -> bool:
+        """Liga/desliga o afinador via SysEx"""
+        try:
+            if not self.connected or self.port is None:
+                return False
+
+            # Comando SysEx para afinador: F0 52 00 5A 64 0B F7
+            sysex_data = [0x52, 0x00, 0x5A, 0x64, 0x0B]
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            
+            status = "ligado" if enabled else "desligado"
+            self.logger.info(f"Afinador {status} via SysEx")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar SysEx tuner: {str(e)}")
+            return False
+    
+    def send_sysex_effect_block(self, block: int, enabled: bool) -> bool:
+        """Liga/desliga bloco de efeito via SysEx"""
+        try:
+            if not self.connected or self.port is None:
+                return False
+
+            # Comando SysEx para bloco de efeito: F0 52 00 5A 64 03 00 <block> 00 00 <state> F7
+            state = 1 if enabled else 0
+            sysex_data = [0x52, 0x00, 0x5A, 0x64, 0x03, 0x00, block, 0x00, 0x00, state]
+            sysex_msg = mido.Message('sysex', data=sysex_data)
+            self.port.send(sysex_msg)
+            
+            status = "ligado" if enabled else "desligado"
+            self.logger.info(f"Bloco de efeito {block} {status} via SysEx")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Erro ao enviar SysEx effect block: {str(e)}")
+            return False
+
     def _send_effect_parameters(self, effect_name: str, effect_params: Dict):
         """Envia parâmetros específicos de um efeito"""
         try:
@@ -304,7 +401,7 @@ class ZoomG3XController:
         }
     
     def get_bank_patches(self, bank_number: int) -> Optional[List[Dict]]:
-        """Tenta importar patches de um banco específico da Zoom G3X usando comandos SysEx documentados."""
+        """Tenta importar patches de um banco específico da Zoom G3X usando comandos SysEx corretos."""
         try:
             if not self.connected or self.port is None:
                 self.logger.warning("Zoom G3X não está conectado para importar patches")
@@ -324,7 +421,7 @@ class ZoomG3XController:
                 patch_name = f"Patch {patch_number_local}"
 
                 # Tenta diferentes métodos para ler o nome do patch
-                patch_name = self._try_read_patch_name_documented(patch_number_global, bank_number)
+                patch_name = self._try_read_patch_name_correct(patch_number_global, bank_number)
 
                 patches.append({
                     'number': patch_number_local,  # Número local (0-9)
@@ -339,8 +436,8 @@ class ZoomG3XController:
             self.logger.error(f"Erro ao importar patches do banco {bank_number}: {str(e)}")
             return None
 
-    def _try_read_patch_name_documented(self, patch_number: int, bank_number: int) -> str:
-        """Tenta ler o nome de um patch usando comandos SysEx documentados."""
+    def _try_read_patch_name_correct(self, patch_number: int, bank_number: int) -> str:
+        """Tenta ler o nome de um patch usando comandos SysEx corretos do JavaPedalMIDI."""
         # Calcula o número local (0-9) para o nome padrão
         local_patch_number = patch_number % 10
         default_name = f"Patch {local_patch_number}"
@@ -348,13 +445,13 @@ class ZoomG3XController:
         if not self.port:
             return default_name
 
-        # Método 1: Comando SysEx para ler patch específico (MS-50G+ command 09)
+        # Método 1: Comando SysEx para ler patch específico (correto do JavaPedalMIDI)
         try:
-            # F0 52 00 6E 09 00 00 <patch_number> F7
-            sysex_data = self.sysex_commands['get_patch_name'] + [0x00, 0x00, patch_number]
+            # F0 52 00 5A 09 00 00 <patch_number> F7
+            sysex_data = self.sysex_commands['request_specific_patch_details'] + [0x00, 0x00, patch_number]
             sysex_msg = mido.Message('sysex', data=sysex_data)
             self.port.send(sysex_msg)
-            self.logger.debug(f"Enviado SysEx get_patch_name para patch {patch_number}: {sysex_data}")
+            self.logger.debug(f"Enviado SysEx request_specific_patch_details para patch {patch_number}: {sysex_data}")
             
             # Aguarda resposta
             time.sleep(0.2)
@@ -363,70 +460,46 @@ class ZoomG3XController:
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
                 if msg.type == 'sysex' and len(msg.data) > 7:
                     try:
-                        # Resposta esperada: F0 52 00 6E 08 00 00 <patch_number> <length LSB> <length MSB> <patch_data> F7
-                        if msg.data[0:4] == [0x52, 0x00, 0x6E, 0x08]:
+                        # Resposta esperada: F0 52 00 5A 08 00 00 <patch_number> <length LSB> <length MSB> <patch_data> F7
+                        if msg.data[0:4] == [0x52, 0x00, 0x5A, 0x08]:
                             # Extrai dados do patch
                             patch_data = msg.data[8:]  # Remove cabeçalho
                             # Procura por string ASCII no patch data
                             name = self._extract_ascii_string(patch_data)
                             if name and name != '':
-                                self.logger.info(f"Patch {patch_number} nome lido via get_patch_name: '{name}'")
+                                self.logger.info(f"Patch {patch_number} nome lido via request_specific_patch_details: '{name}'")
                                 return name
                     except Exception as e:
-                        self.logger.debug(f"Erro ao decodificar resposta get_patch_name do patch {patch_number}: {e}")
+                        self.logger.debug(f"Erro ao decodificar resposta request_specific_patch_details do patch {patch_number}: {e}")
         except Exception as e:
-            self.logger.debug(f"Método get_patch_name falhou para patch {patch_number}: {e}")
+            self.logger.debug(f"Método request_specific_patch_details falhou para patch {patch_number}: {e}")
 
-        # Método 2: Comando SysEx para ler patch do banco (MS-50G+ command 08)
+        # Método 2: Comando SysEx para ler patch atual
         try:
-            # F0 52 00 6E 08 00 00 <patch_number> F7
-            sysex_data = self.sysex_commands['get_bank_patch'] + [0x00, 0x00, patch_number]
+            # F0 52 00 5A 29 F7
+            sysex_data = self.sysex_commands['request_current_patch_details']
             sysex_msg = mido.Message('sysex', data=sysex_data)
             self.port.send(sysex_msg)
-            self.logger.debug(f"Enviado SysEx get_bank_patch para patch {patch_number}: {sysex_data}")
-            
-            time.sleep(0.2)
-            
-            for msg in getattr(self.port, 'iter_pending', lambda: [])():
-                if msg.type == 'sysex' and len(msg.data) > 7:
-                    try:
-                        if msg.data[0:4] == [0x52, 0x00, 0x6E, 0x08]:
-                            patch_data = msg.data[8:]
-                            name = self._extract_ascii_string(patch_data)
-                            if name and name != '':
-                                self.logger.info(f"Patch {patch_number} nome lido via get_bank_patch: '{name}'")
-                                return name
-                    except Exception as e:
-                        self.logger.debug(f"Erro ao decodificar resposta get_bank_patch do patch {patch_number}: {e}")
-        except Exception as e:
-            self.logger.debug(f"Método get_bank_patch falhou para patch {patch_number}: {e}")
-
-        # Método 3: Comando SysEx para ler patch atual (MS-50G+ command 29)
-        try:
-            # F0 52 00 6E 29 F7
-            sysex_data = self.sysex_commands['get_current_patch']
-            sysex_msg = mido.Message('sysex', data=sysex_data)
-            self.port.send(sysex_msg)
-            self.logger.debug(f"Enviado SysEx get_current_patch: {sysex_data}")
+            self.logger.debug(f"Enviado SysEx request_current_patch_details: {sysex_data}")
             
             time.sleep(0.2)
             
             for msg in getattr(self.port, 'iter_pending', lambda: [])():
                 if msg.type == 'sysex' and len(msg.data) > 3:
                     try:
-                        # Resposta esperada: F0 52 00 6E 28 <patch_data> F7
-                        if msg.data[0:4] == [0x52, 0x00, 0x6E, 0x28]:
+                        # Resposta esperada: F0 52 00 5A 28 <patch_data> F7
+                        if msg.data[0:4] == [0x52, 0x00, 0x5A, 0x28]:
                             patch_data = msg.data[4:]
                             name = self._extract_ascii_string(patch_data)
                             if name and name != '':
-                                self.logger.info(f"Patch atual nome lido via get_current_patch: '{name}'")
+                                self.logger.info(f"Patch atual nome lido via request_current_patch_details: '{name}'")
                                 return name
                     except Exception as e:
-                        self.logger.debug(f"Erro ao decodificar resposta get_current_patch: {e}")
+                        self.logger.debug(f"Erro ao decodificar resposta request_current_patch_details: {e}")
         except Exception as e:
-            self.logger.debug(f"Método get_current_patch falhou: {e}")
+            self.logger.debug(f"Método request_current_patch_details falhou: {e}")
 
-        # Método 4: Program Change + tentativa de leitura
+        # Método 3: Program Change + tentativa de leitura
         try:
             # Envia Program Change para o patch
             pc_msg = mido.Message('program_change', channel=0, program=patch_number)
@@ -459,31 +532,24 @@ class ZoomG3XController:
     def _extract_ascii_string(self, data: List[int]) -> str:
         """Extrai string ASCII válida dos dados SysEx"""
         try:
-            # Converte para bytes e procura por strings ASCII válidas
-            byte_data = bytes(data)
+            # Remove bytes não-ASCII (valores > 127)
+            ascii_bytes = [b for b in data if 32 <= b <= 126]
             
-            # Procura por sequências de caracteres ASCII imprimíveis
-            strings = []
-            current_string = ""
+            if not ascii_bytes:
+                return ""
             
-            for byte in byte_data:
-                if 32 <= byte <= 126:  # Caracteres ASCII imprimíveis
-                    current_string += chr(byte)
-                else:
-                    if len(current_string) >= 2:  # Mínimo 2 caracteres
-                        strings.append(current_string)
-                    current_string = ""
+            # Converte para string
+            result = bytes(ascii_bytes).decode('ascii', errors='ignore')
             
-            # Adiciona última string se válida
-            if len(current_string) >= 2:
-                strings.append(current_string)
+            # Remove caracteres de controle e espaços extras
+            result = result.strip()
             
-            # Retorna a string mais longa encontrada
-            if strings:
-                return max(strings, key=len).strip()
+            # Se a string for muito curta, pode não ser um nome válido
+            if len(result) < 2:
+                return ""
             
-            return ""
+            return result
             
         except Exception as e:
-            self.logger.debug(f"Erro ao extrair string ASCII: {e}")
+            self.logger.debug(f"Erro ao extrair ASCII string: {e}")
             return "" 

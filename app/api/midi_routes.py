@@ -630,11 +630,21 @@ def activate_patch(patch_id):
 @midi_bp.route('/sysex/tuner', methods=['POST'])
 def sysex_tuner():
     device = request.json.get('device')
+    enabled = request.json.get('enabled', True)
     try:
-        # Afinador: F0 52 00 6E 64 0B F7
-        sysex = [0x52, 0x00, 0x6E, 0x64, 0x0B]
+        # Se for Zoom G3X, usa o controlador específico
+        if device and ('zoom' in device.lower() or 'g3x' in device.lower()):
+            if hasattr(midi_controller, 'zoom_g3x') and midi_controller.zoom_g3x:
+                success = midi_controller.zoom_g3x.send_sysex_tuner(enabled)
+                if success:
+                    return jsonify({'success': True, 'message': f'Afinador {"ligado" if enabled else "desligado"}'})
+                else:
+                    return jsonify({'success': False, 'error': 'Erro ao controlar afinador'})
+        
+        # Comando SysEx genérico para afinador: F0 52 00 5A 64 0B F7
+        sysex = [0x52, 0x00, 0x5A, 0x64, 0x0B]
         midi_controller.send_sysex(sysex, device)
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': f'Afinador {"ligado" if enabled else "desligado"}'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -644,10 +654,19 @@ def sysex_effect():
     block = int(request.json.get('block'))
     state = int(request.json.get('state'))  # 0=off, 1=on
     try:
-        # Ligar/desligar efeito: F0 52 00 6E 64 03 00 bb 00 00 ss F7
-        sysex = [0x52, 0x00, 0x6E, 0x64, 0x03, 0x00, block, 0x00, 0x00, state]
+        # Se for Zoom G3X, usa o controlador específico
+        if device and ('zoom' in device.lower() or 'g3x' in device.lower()):
+            if hasattr(midi_controller, 'zoom_g3x') and midi_controller.zoom_g3x:
+                success = midi_controller.zoom_g3x.send_sysex_effect_block(block, state == 1)
+                if success:
+                    return jsonify({'success': True, 'message': f'Bloco de efeito {block} {"ligado" if state else "desligado"}'})
+                else:
+                    return jsonify({'success': False, 'error': 'Erro ao controlar bloco de efeito'})
+        
+        # Comando SysEx genérico para bloco de efeito: F0 52 00 5A 64 03 00 bb 00 00 ss F7
+        sysex = [0x52, 0x00, 0x5A, 0x64, 0x03, 0x00, block, 0x00, 0x00, state]
         midi_controller.send_sysex(sysex, device)
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': f'Bloco de efeito {block} {"ligado" if state else "desligado"}'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
