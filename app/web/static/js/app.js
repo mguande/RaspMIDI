@@ -200,47 +200,27 @@ class RaspMIDI {
         this.setupEdicaoMenu();
 
         // === Comandos SysEx Zoom ===
-        function getSelectedOutputDeviceName() {
+        const getSelectedOutputDeviceName = () => {
             const select = document.getElementById('output-device-select');
             return select ? select.value : null;
-        }
+        };
 
         document.getElementById('btn-zoom-tuner-on')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
-            if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            await sendZoomTuner(device, true);
+            if (!device) return this.showNotification('Selecione um dispositivo de saída!', 'warning');
+            await this.sendZoomTuner(device, true);
         });
         document.getElementById('btn-zoom-tuner-off')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
-            if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            await sendZoomTuner(device, false);
+            if (!device) return this.showNotification('Selecione um dispositivo de saída!', 'warning');
+            await this.sendZoomTuner(device, false);
         });
-        async function sendZoomTuner(device, enabled = true) {
-            try {
-                const resp = await fetch('/api/midi/sysex/tuner', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        device: device,
-                        enabled: enabled 
-                    })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    showNotification(data.message || `Afinador ${enabled ? 'ligado' : 'desligado'}!`, 'success');
-                } else {
-                    showNotification('Erro ao controlar afinador: ' + data.error, 'error');
-                }
-            } catch (e) {
-                showNotification('Erro ao controlar afinador: ' + e.message, 'error');
-            }
-        }
 
         document.getElementById('btn-zoom-select-patch')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
             const patch = parseInt(document.getElementById('zoom-patch-number').value);
-            if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            if (isNaN(patch) || patch < 10 || patch > 59) return showNotification('Patch inválido (10-59)', 'warning');
+            if (!device) return this.showNotification('Selecione um dispositivo de saída!', 'warning');
+            if (isNaN(patch) || patch < 10 || patch > 59) return this.showNotification('Patch inválido (10-59)', 'warning');
             try {
                 const resp = await fetch('/api/midi/sysex/patch', {
                     method: 'POST',
@@ -248,42 +228,25 @@ class RaspMIDI {
                     body: JSON.stringify({ device, patch })
                 });
                 const data = await resp.json();
-                if (data.success) showNotification('Patch selecionado!', 'success');
-                else showNotification('Erro ao selecionar patch: ' + data.error, 'error');
+                if (data.success) this.showNotification('Patch selecionado!', 'success');
+                else this.showNotification('Erro ao selecionar patch: ' + data.error, 'error');
             } catch (e) {
-                showNotification('Erro ao selecionar patch', 'error');
+                this.showNotification('Erro ao selecionar patch', 'error');
             }
         });
 
         document.getElementById('btn-zoom-effect-on')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
             const block = parseInt(document.getElementById('zoom-effect-block').value);
-            if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            await sendZoomEffect(device, block, 1);
+            if (!device) return this.showNotification('Selecione um dispositivo de saída!', 'warning');
+            await this.sendZoomEffect(device, block, 1);
         });
         document.getElementById('btn-zoom-effect-off')?.addEventListener('click', async () => {
             const device = getSelectedOutputDeviceName();
             const block = parseInt(document.getElementById('zoom-effect-block').value);
-            if (!device) return showNotification('Selecione um dispositivo de saída!', 'warning');
-            await sendZoomEffect(device, block, 0);
+            if (!device) return this.showNotification('Selecione um dispositivo de saída!', 'warning');
+            await this.sendZoomEffect(device, block, 0);
         });
-        async function sendZoomEffect(device, block, state) {
-            try {
-                const resp = await fetch('/api/midi/sysex/effect', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device, block, state })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    showNotification(data.message || `Bloco de efeito ${block} ${state ? 'ligado' : 'desligado'}!`, 'success');
-                } else {
-                    showNotification('Erro ao controlar bloco de efeito: ' + data.error, 'error');
-                }
-            } catch (e) {
-                showNotification('Erro ao controlar bloco de efeito: ' + e.message, 'error');
-            }
-        }
     }
     
     setupModalListeners() {
@@ -2063,6 +2026,45 @@ class RaspMIDI {
         setTimeout(() => {
             notification.remove();
         }, 3000);
+    }
+
+    async sendZoomTuner(device, enabled = true) {
+        try {
+            const resp = await fetch('/api/midi/sysex/tuner', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    device: device,
+                    enabled: enabled 
+                })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                this.showNotification(data.message || `Afinador ${enabled ? 'ligado' : 'desligado'}!`, 'success');
+            } else {
+                this.showNotification('Erro ao controlar afinador: ' + data.error, 'error');
+            }
+        } catch (e) {
+            this.showNotification('Erro ao controlar afinador: ' + e.message, 'error');
+        }
+    }
+
+    async sendZoomEffect(device, block, state) {
+        try {
+            const resp = await fetch('/api/midi/sysex/effect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device, block, state })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                this.showNotification(data.message || `Bloco de efeito ${block} ${state ? 'ligado' : 'desligado'}!`, 'success');
+            } else {
+                this.showNotification('Erro ao controlar bloco de efeito: ' + data.error, 'error');
+            }
+        } catch (e) {
+            this.showNotification('Erro ao controlar bloco de efeito: ' + e.message, 'error');
+        }
     }
     
     startStatusUpdates() {

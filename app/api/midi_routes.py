@@ -632,6 +632,8 @@ def sysex_tuner():
     device = request.json.get('device')
     enabled = request.json.get('enabled', True)
     try:
+        midi_controller = current_app.midi_controller
+        
         # Se for Zoom G3X, usa o controlador específico
         if device and ('zoom' in device.lower() or 'g3x' in device.lower()):
             if hasattr(midi_controller, 'zoom_g3x') and midi_controller.zoom_g3x:
@@ -654,6 +656,8 @@ def sysex_effect():
     block = int(request.json.get('block'))
     state = int(request.json.get('state'))  # 0=off, 1=on
     try:
+        midi_controller = current_app.midi_controller
+        
         # Se for Zoom G3X, usa o controlador específico
         if device and ('zoom' in device.lower() or 'g3x' in device.lower()):
             if hasattr(midi_controller, 'zoom_g3x') and midi_controller.zoom_g3x:

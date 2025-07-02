@@ -278,60 +278,70 @@ class ZoomG3XController:
             return False
     
     def send_sysex_patch(self, patch_number: int) -> bool:
-        """Envia comando SysEx para selecionar patch específico"""
+        """Envia comando PC para selecionar patch (SYSEX não funciona no Zoom G3X)"""
         try:
             if not self.connected or self.port is None:
                 return False
 
-            # Comando SysEx para selecionar patch específico: F0 52 00 5A 09 00 00 <patch> F7
-            sysex_data = self.sysex_commands['request_specific_patch_details'] + [0x00, 0x00, patch_number]
-            sysex_msg = mido.Message('sysex', data=sysex_data)
-            self.port.send(sysex_msg)
+            # Usa PC (Program Change) em vez de SYSEX
+            # O Zoom G3X não suporta SYSEX para controle de patches
+            if patch_number < 0 or patch_number > 59:
+                self.logger.error(f"Número de patch inválido: {patch_number}")
+                return False
             
-            self.logger.info(f"SysEx patch selection enviado: patch {patch_number}")
+            # Envia PC no canal 1 (channel=0)
+            pc_msg = mido.Message('program_change', channel=0, program=patch_number)
+            self.port.send(pc_msg)
+            
+            self.logger.info(f"Comando PC para patch {patch_number} enviado: channel=0, program={patch_number}")
             return True
 
         except Exception as e:
-            self.logger.error(f"Erro ao enviar SysEx patch selection: {str(e)}")
+            self.logger.error(f"Erro ao enviar comando PC para patch: {str(e)}")
             return False
     
     def send_sysex_tuner(self, enabled: bool) -> bool:
-        """Liga/desliga o afinador via SysEx"""
+        """Liga/desliga o afinador (SYSEX não funciona no Zoom G3X)"""
         try:
             if not self.connected or self.port is None:
                 return False
 
-            # Comando SysEx para afinador: F0 52 00 5A 64 0B F7
-            sysex_data = [0x52, 0x00, 0x5A, 0x64, 0x0B]
-            sysex_msg = mido.Message('sysex', data=sysex_data)
-            self.port.send(sysex_msg)
-            
+            # O Zoom G3X não suporta SYSEX para controle de afinador
+            # Tenta usar CC como alternativa
             status = "ligado" if enabled else "desligado"
-            self.logger.info(f"Afinador {status} via SysEx")
+            self.logger.warning(f"Afinador {status} - SYSEX não suportado no Zoom G3X")
+            
+            # Tenta usar CC 64 (Sustain) como alternativa
+            value = 127 if enabled else 0
+            self.send_cc(0, 64, value)
+            
             return True
 
         except Exception as e:
-            self.logger.error(f"Erro ao enviar SysEx tuner: {str(e)}")
+            self.logger.error(f"Erro ao controlar afinador: {str(e)}")
             return False
     
     def send_sysex_effect_block(self, block: int, enabled: bool) -> bool:
-        """Liga/desliga bloco de efeito via SysEx"""
+        """Liga/desliga bloco de efeito (SYSEX não funciona no Zoom G3X)"""
         try:
             if not self.connected or self.port is None:
                 return False
 
-            # Comando SysEx para bloco de efeito: F0 52 00 5A 64 03 00 <block> 00 00 <state> F7
-            state = 1 if enabled else 0
-            sysex_data = [0x52, 0x00, 0x5A, 0x64, 0x03, 0x00, block, 0x00, 0x00, state]
-            sysex_msg = mido.Message('sysex', data=sysex_data)
-            self.port.send(sysex_msg)
-            
+            # O Zoom G3X não suporta SYSEX para controle de blocos de efeito
+            # Tenta usar CC como alternativa
             status = "ligado" if enabled else "desligado"
-            self.logger.info(f"Bloco de efeito {block} {status} via SysEx")
+            self.logger.warning(f"Bloco de efeito {block} {status} - SYSEX não suportado no Zoom G3X")
+            
+            # Tenta usar CC baseado no bloco como alternativa
+            # CC 70-79 são Sound Controllers que podem ser usados
+            cc_number = 70 + (block - 1)  # CC 70 para bloco 1, CC 71 para bloco 2, etc.
+            value = 127 if enabled else 0
+            self.send_cc(0, cc_number, value)
+            
             return True
 
         except Exception as e:
-            self.logger.error(f"Erro ao enviar SysEx effect block: {str(e)}")
+            self.logger.error(f"Erro ao controlar bloco de efeito: {str(e)}")
             return False
 
     def _send_effect_parameters(self, effect_name: str, effect_params: Dict):
