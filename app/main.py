@@ -97,6 +97,11 @@ def create_app(config_name=None):
         @app.route('/health')
         def health():
             return {'status': 'healthy'}
+        
+        # Rota de checkup/reparos
+        @app.route('/checkup')
+        def checkup():
+            return render_template('checkup.html')
     
     # Configura logging
     logger = logging.getLogger(__name__)

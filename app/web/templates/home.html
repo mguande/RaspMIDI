@@ -78,6 +78,16 @@
             box-shadow: 0 6px 30px #000c;
         }
         
+        .mode-btn.checkup { 
+            background: linear-gradient(135deg, #e74c3c, #c0392b); 
+            color: #fff; 
+        }
+        .mode-btn.checkup:hover { 
+            background: linear-gradient(135deg, #c0392b, #a93226); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px #000c;
+        }
+        
         .logo { 
             font-size: 3rem; 
             color: #fff; 
@@ -117,6 +127,11 @@
         <button class="mode-btn verificacao" onclick="window.location.href='/verificacao'">
             <i class="fas fa-tools btn-icon"></i>
             Verificação do Sistema
+        </button>
+        
+        <button class="mode-btn checkup" onclick="window.location.href='/checkup'">
+            <i class="fas fa-wrench btn-icon"></i>
+            🛠️ Checkup/Reparos
         </button>
     </div>
 </body>

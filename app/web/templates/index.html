@@ -9,7 +9,11 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
 </head>
 <body>
-    <div class="container">
+    <div class="container" style="padding-top: 0; max-width: 480px; min-width: 0;">
+        <!-- Botão Checkup/Reparos -->
+        <div style="width: 100%; display: flex; justify-content: flex-start; margin-bottom: 1rem; padding: 10px 0; background: rgba(231, 76, 60, 0.1); border-radius: 8px; border: 2px solid #e74c3c;">
+            <button onclick="window.location.href='/checkup'" class="btn btn-danger" style="font-size: 1.2rem; padding: 1rem 1.5rem; border-radius: 0.8rem; font-weight: bold; margin-left: 10px; box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3); transition: all 0.3s ease;">🛠️ Checkup/Reparos</button>
+        </div>
         <!-- Header -->
         <header class="header">
             <h1>🎵 RaspMIDI</h1>
@@ -758,6 +762,29 @@
 
         .btn-secondary:hover {
             background-color: var(--primary-color);
+        }
+
+        @media (max-width: 600px), (max-width: 480px) {
+            .container {
+                max-width: 480px !important;
+                min-width: 0 !important;
+                padding: 4px !important;
+            }
+            .header {
+                margin-bottom: 0.5rem !important;
+                padding: 0.5rem !important;
+            }
+            .status-bar, .card {
+                margin-bottom: 0.5rem !important;
+                padding: 0.5rem !important;
+            }
+            .card-title, .header h1 {
+                font-size: 1.2rem !important;
+            }
+            .btn, .btn-primary, .btn-success, .btn-danger {
+                font-size: 1rem !important;
+                padding: 0.5rem 0.8rem !important;
+            }
         }
     </style>
 

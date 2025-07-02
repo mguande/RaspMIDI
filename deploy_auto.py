@@ -146,6 +146,22 @@ def read_remote_logs():
     else:
         print(f"❌ Erro ao ler logs: {error}")
 
+def stop_systemd_service():
+    print('🔄 Parando serviço systemd raspmidi.service (se estiver rodando)...')
+    try:
+        subprocess.run(['sudo', 'systemctl', 'stop', 'raspmidi.service'], check=False)
+        print('✅ Serviço systemd parado.')
+    except Exception as e:
+        print(f'⚠️  Falha ao parar serviço systemd: {e}')
+
+def start_systemd_service():
+    print('🔄 Iniciando serviço systemd raspmidi.service...')
+    try:
+        subprocess.run(['sudo', 'systemctl', 'start', 'raspmidi.service'], check=False)
+        print('✅ Serviço systemd iniciado.')
+    except Exception as e:
+        print(f'⚠️  Falha ao iniciar serviço systemd: {e}')
+
 def main():
     """Função principal"""
     print("🚀 Deploy automático para Raspberry Pi")
@@ -153,13 +169,18 @@ def main():
     print(f"👤 Usuário: {RASPBERRY_USER}")
     print()
     
+    stop_systemd_service()
+    
     # Deploy dos arquivos principais e todos os .py relevantes
     files_to_deploy = [
         ("app/web/static/js/app.js", f"{RASPBERRY_PATH}/app/web/static/js/"),
         ("app/web/static/css/style.css", f"{RASPBERRY_PATH}/app/web/static/css/"),
+        ("app/web/templates/index.html", f"{RASPBERRY_PATH}/app/web/templates/"),
+        ("app/web/templates/home.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/verificacao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/edicao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/palco.html", f"{RASPBERRY_PATH}/app/web/templates/"),
+        ("app/web/templates/checkup.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("run.py", f"{RASPBERRY_PATH}/"),
         ("app/main.py", f"{RASPBERRY_PATH}/app/"),
     ]
@@ -192,6 +213,8 @@ def main():
             print("\n❌ Deploy concluído com falhas.")
     else:
         print("\n❌ Deploy falhou na cópia de arquivos!")
+    
+    start_systemd_service()
     
     return all_success
 

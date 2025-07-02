@@ -1103,8 +1103,16 @@
                                 // Usa zoom_bank_letter se disponível, senão zoom_bank
                                 const bankToShow = patch.zoom_bank_letter || patch.zoom_bank;
                                 console.log('🎹 Banco a mostrar no display Zoom:', bankToShow);
-                                console.log('🎹 Patch a mostrar no display Zoom:', patch.zoom_patch);
-                                updateZoomDisplay(bankToShow, patch.zoom_patch, zoomDevice.connected);
+                                console.log('🎹 Patch global da Zoom:', patch.zoom_patch);
+                                
+                                // Converte o número global para local (0-9 dentro do banco)
+                                let localPatchNumber = patch.zoom_patch;
+                                if (patch.zoom_patch !== undefined && patch.zoom_patch !== null) {
+                                    // Converte número global para local (0-9)
+                                    localPatchNumber = patch.zoom_patch % 10;
+                                }
+                                console.log('🎹 Patch local a mostrar no display Zoom:', localPatchNumber);
+                                updateZoomDisplay(bankToShow, localPatchNumber, zoomDevice.connected);
                             } else {
                                 console.log('❌ Dispositivo Zoom não encontrado na lista');
                             }

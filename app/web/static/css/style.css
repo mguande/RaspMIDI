@@ -1670,4 +1670,295 @@ body, .container, .content-section, .modal-content, .modal-header, .modal-footer
     max-width: 160px;
     font-size: 0.95rem;
     padding: 6px 8px;
+}
+
+/* ========================================
+   ESTILOS DA TELA DE CHECKUP
+   ======================================== */
+
+.checkup-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.checkup-section {
+    background: #23283a;
+    border: 1.5px solid #333;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.checkup-section h3 {
+    color: #ffb300;
+    font-size: 1.4rem;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkup-section h3 i {
+    font-size: 1.2rem;
+}
+
+.checkup-controls {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.checkup-controls .btn {
+    padding: 12px 20px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkup-controls .btn i {
+    font-size: 1.1rem;
+}
+
+.checkup-controls select {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #23283a;
+    color: #fff;
+    font-size: 1rem;
+    min-width: 120px;
+}
+
+.checkup-output {
+    background: #1a1e2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.checkup-output .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffb300;
+    font-size: 1.1rem;
+    gap: 10px;
+    height: 100px;
+}
+
+.checkup-output .loading::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ffb300;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.checkup-output .error {
+    color: #e74c3c;
+    font-weight: 600;
+    padding: 10px;
+    background: rgba(231, 76, 60, 0.1);
+    border-radius: 6px;
+    border-left: 4px solid #e74c3c;
+}
+
+.checkup-output .success {
+    color: #27ae60;
+    font-weight: 600;
+    padding: 10px;
+    background: rgba(39, 174, 96, 0.1);
+    border-radius: 6px;
+    border-left: 4px solid #27ae60;
+}
+
+.log-content {
+    color: #f2f2f2;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.connectivity-results {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.test-result {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid;
+    transition: all 0.3s ease;
+}
+
+.test-result.success {
+    background: rgba(39, 174, 96, 0.1);
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.test-result.error {
+    background: rgba(231, 76, 60, 0.1);
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.test-icon {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.test-name {
+    font-weight: 600;
+    min-width: 120px;
+}
+
+.test-details {
+    flex: 1;
+    opacity: 0.9;
+}
+
+.devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.device-category h4 {
+    color: #ffb300;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.device-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: #1a1e2a;
+    border: 1px solid #444;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+}
+
+.device-item:hover {
+    background: #2a2f3a;
+    border-color: #555;
+}
+
+.device-name {
+    font-weight: 600;
+    color: #f2f2f2;
+    flex: 1;
+}
+
+.device-type {
+    color: #888;
+    font-size: 0.9rem;
+    background: #333;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.no-devices {
+    color: #888;
+    font-style: italic;
+    padding: 15px;
+    text-align: center;
+    background: #1a1e2a;
+    border: 1px dashed #444;
+    border-radius: 6px;
+}
+
+/* Responsividade para checkup */
+@media (max-width: 768px) {
+    .checkup-container {
+        padding: 15px;
+    }
+    
+    .checkup-section {
+        padding: 15px;
+    }
+    
+    .checkup-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .checkup-controls .btn {
+        justify-content: center;
+    }
+    
+    .test-result {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .test-name {
+        min-width: auto;
+    }
+    
+    .device-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .device-type {
+        align-self: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkup-container {
+        padding: 10px;
+    }
+    
+    .checkup-section {
+        padding: 12px;
+    }
+    
+    .checkup-section h3 {
+        font-size: 1.2rem;
+    }
+    
+    .checkup-controls .btn {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+    }
+    
+    .checkup-output {
+        font-size: 0.8rem;
+        padding: 12px;
+    }
 } 

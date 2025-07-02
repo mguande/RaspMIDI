@@ -3607,9 +3607,354 @@ class RaspMIDI {
         log.textContent += (log.textContent ? '\n' : '') + msg;
         log.scrollTop = log.scrollHeight;
     }
+
+    // ========================================
+    // FUNCIONALIDADES DA TELA DE CHECKUP
+    // ========================================
+    
+    setupCheckupEventListeners() {
+        // Botão para ler log do sistema
+        const readLogBtn = document.getElementById('read-system-log');
+        if (readLogBtn) {
+            readLogBtn.addEventListener('click', () => this.readSystemLog());
+        }
+        
+        // Botão para testar conectividade
+        const testConnectivityBtn = document.getElementById('test-connectivity');
+        if (testConnectivityBtn) {
+            testConnectivityBtn.addEventListener('click', () => this.testConnectivity());
+        }
+        
+        // Botão para listar dispositivos
+        const listDevicesBtn = document.getElementById('list-devices');
+        if (listDevicesBtn) {
+            listDevicesBtn.addEventListener('click', () => this.listDevices());
+        }
+        
+        // Botão para reconectar entrada MIDI
+        const reconnectInputBtn = document.getElementById('reconnect-midi-input');
+        if (reconnectInputBtn) {
+            reconnectInputBtn.addEventListener('click', () => this.reconnectMidiInput());
+        }
+        
+        // Botão para reconectar saída MIDI
+        const reconnectOutputBtn = document.getElementById('reconnect-midi-output');
+        if (reconnectOutputBtn) {
+            reconnectOutputBtn.addEventListener('click', () => this.reconnectMidiOutput());
+        }
+        
+        // Select para quantidade de linhas do log
+        const logLinesSelect = document.getElementById('log-lines');
+        if (logLinesSelect) {
+            logLinesSelect.addEventListener('change', (e) => {
+                this.logLines = parseInt(e.target.value);
+            });
+        }
+    }
+    
+    async readSystemLog() {
+        try {
+            const logLines = document.getElementById('log-lines')?.value || 50;
+            const logOutput = document.getElementById('system-log-output');
+            
+            if (!logOutput) {
+                console.error('Elemento system-log-output não encontrado');
+                return;
+            }
+            
+            // Mostrar loading
+            logOutput.innerHTML = '<div class="loading">📋 Carregando log do sistema...</div>';
+            
+            const response = await fetch(`/api/checkup/system-log?lines=${logLines}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Formatar o log para exibição
+                const formattedLog = this.formatSystemLog(data.log);
+                logOutput.innerHTML = `<pre class="log-content">${formattedLog}</pre>`;
+                this.showNotification('Log do sistema carregado com sucesso', 'success');
+            } else {
+                logOutput.innerHTML = `<div class="error">❌ Erro: ${data.error || 'Erro desconhecido'}</div>`;
+                this.showNotification('Erro ao carregar log do sistema', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao ler log do sistema:', error);
+            const logOutput = document.getElementById('system-log-output');
+            if (logOutput) {
+                logOutput.innerHTML = `<div class="error">❌ Erro de conexão: ${error.message}</div>`;
+            }
+            this.showNotification('Erro de conexão ao carregar log', 'error');
+        }
+    }
+    
+    formatSystemLog(logText) {
+        if (!logText) return 'Log vazio';
+        
+        // Quebrar em linhas e adicionar numeração
+        const lines = logText.split('\n');
+        const formattedLines = lines.map((line, index) => {
+            const lineNumber = (index + 1).toString().padStart(4, ' ');
+            return `${lineNumber}: ${line}`;
+        });
+        
+        return formattedLines.join('\n');
+    }
+    
+    async testConnectivity() {
+        try {
+            const connectivityOutput = document.getElementById('connectivity-output');
+            
+            if (!connectivityOutput) {
+                console.error('Elemento connectivity-output não encontrado');
+                return;
+            }
+            
+            // Mostrar loading
+            connectivityOutput.innerHTML = '<div class="loading">🔍 Testando conectividade...</div>';
+            
+            const response = await fetch('/api/checkup/test-connectivity');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const results = data.results;
+                let html = '<div class="connectivity-results">';
+                
+                // Teste de rede
+                html += `<div class="test-result ${results.network ? 'success' : 'error'}">`;
+                html += `<span class="test-icon">${results.network ? '✅' : '❌'}</span>`;
+                html += `<span class="test-name">Rede</span>`;
+                html += `<span class="test-details">${results.network ? 'Conectado' : 'Sem conexão'}</span>`;
+                html += '</div>';
+                
+                // Teste de MIDI
+                html += `<div class="test-result ${results.midi ? 'success' : 'error'}">`;
+                html += `<span class="test-icon">${results.midi ? '✅' : '❌'}</span>`;
+                html += `<span class="test-name">MIDI</span>`;
+                html += `<span class="test-details">${results.midi ? 'Dispositivos disponíveis' : 'Nenhum dispositivo'}</span>`;
+                html += '</div>';
+                
+                // Teste de banco de dados
+                html += `<div class="test-result ${results.database ? 'success' : 'error'}">`;
+                html += `<span class="test-icon">${results.database ? '✅' : '❌'}</span>`;
+                html += `<span class="test-name">Banco de Dados</span>`;
+                html += `<span class="test-details">${results.database ? 'Conectado' : 'Erro de conexão'}</span>`;
+                html += '</div>';
+                
+                // Teste de cache
+                html += `<div class="test-result ${results.cache ? 'success' : 'error'}">`;
+                html += `<span class="test-icon">${results.cache ? '✅' : '❌'}</span>`;
+                html += `<span class="test-name">Cache</span>`;
+                html += `<span class="test-details">${results.cache ? 'Funcionando' : 'Erro no cache'}</span>`;
+                html += '</div>';
+                
+                html += '</div>';
+                connectivityOutput.innerHTML = html;
+                
+                this.showNotification('Teste de conectividade concluído', 'success');
+            } else {
+                connectivityOutput.innerHTML = `<div class="error">❌ Erro: ${data.error || 'Erro desconhecido'}</div>`;
+                this.showNotification('Erro no teste de conectividade', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao testar conectividade:', error);
+            const connectivityOutput = document.getElementById('connectivity-output');
+            if (connectivityOutput) {
+                connectivityOutput.innerHTML = `<div class="error">❌ Erro de conexão: ${error.message}</div>`;
+            }
+            this.showNotification('Erro de conexão no teste', 'error');
+        }
+    }
+    
+    async listDevices() {
+        try {
+            const devicesOutput = document.getElementById('devices-output');
+            
+            if (!devicesOutput) {
+                console.error('Elemento devices-output não encontrado');
+                return;
+            }
+            
+            // Mostrar loading
+            devicesOutput.innerHTML = '<div class="loading">🔍 Listando dispositivos...</div>';
+            
+            const response = await fetch('/api/checkup/list-devices');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const devices = data.devices;
+                let html = '<div class="devices-list">';
+                
+                if (devices.inputs && devices.inputs.length > 0) {
+                    html += '<div class="device-category">';
+                    html += '<h4>🎹 Entradas MIDI</h4>';
+                    devices.inputs.forEach(device => {
+                        html += `<div class="device-item">`;
+                        html += `<span class="device-name">${device.name}</span>`;
+                        html += `<span class="device-type">${device.type}</span>`;
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div class="device-category">';
+                    html += '<h4>🎹 Entradas MIDI</h4>';
+                    html += '<div class="no-devices">Nenhuma entrada MIDI encontrada</div>';
+                    html += '</div>';
+                }
+                
+                if (devices.outputs && devices.outputs.length > 0) {
+                    html += '<div class="device-category">';
+                    html += '<h4>🔊 Saídas MIDI</h4>';
+                    devices.outputs.forEach(device => {
+                        html += `<div class="device-item">`;
+                        html += `<span class="device-name">${device.name}</span>`;
+                        html += `<span class="device-type">${device.type}</span>`;
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div class="device-category">';
+                    html += '<h4>🔊 Saídas MIDI</h4>';
+                    html += '<div class="no-devices">Nenhuma saída MIDI encontrada</div>';
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                devicesOutput.innerHTML = html;
+                
+                this.showNotification('Dispositivos listados com sucesso', 'success');
+            } else {
+                devicesOutput.innerHTML = `<div class="error">❌ Erro: ${data.error || 'Erro desconhecido'}</div>`;
+                this.showNotification('Erro ao listar dispositivos', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao listar dispositivos:', error);
+            const devicesOutput = document.getElementById('devices-output');
+            if (devicesOutput) {
+                devicesOutput.innerHTML = `<div class="error">❌ Erro de conexão: ${error.message}</div>`;
+            }
+            this.showNotification('Erro de conexão ao listar dispositivos', 'error');
+        }
+    }
+    
+    async reconnectMidiInput() {
+        try {
+            const reconnectOutput = document.getElementById('reconnect-output');
+            
+            if (!reconnectOutput) {
+                console.error('Elemento reconnect-output não encontrado');
+                return;
+            }
+            
+            // Mostrar loading
+            reconnectOutput.innerHTML = '<div class="loading">🔄 Reconectando entrada MIDI...</div>';
+            
+            const response = await fetch('/api/checkup/reconnect-midi-input', { method: 'POST' });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                reconnectOutput.innerHTML = `<div class="success">✅ Entrada MIDI reconectada com sucesso</div>`;
+                this.showNotification('Entrada MIDI reconectada', 'success');
+                
+                // Recarregar dispositivos após reconexão
+                setTimeout(() => {
+                    this.loadDevices();
+                }, 1000);
+            } else {
+                reconnectOutput.innerHTML = `<div class="error">❌ Erro: ${data.error || 'Erro desconhecido'}</div>`;
+                this.showNotification('Erro ao reconectar entrada MIDI', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao reconectar entrada MIDI:', error);
+            const reconnectOutput = document.getElementById('reconnect-output');
+            if (reconnectOutput) {
+                reconnectOutput.innerHTML = `<div class="error">❌ Erro de conexão: ${error.message}</div>`;
+            }
+            this.showNotification('Erro de conexão na reconexão', 'error');
+        }
+    }
+    
+    async reconnectMidiOutput() {
+        try {
+            const reconnectOutput = document.getElementById('reconnect-output');
+            
+            if (!reconnectOutput) {
+                console.error('Elemento reconnect-output não encontrado');
+                return;
+            }
+            
+            // Mostrar loading
+            reconnectOutput.innerHTML = '<div class="loading">🔄 Reconectando saída MIDI...</div>';
+            
+            const response = await fetch('/api/checkup/reconnect-midi-output', { method: 'POST' });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                reconnectOutput.innerHTML = `<div class="success">✅ Saída MIDI reconectada com sucesso</div>`;
+                this.showNotification('Saída MIDI reconectada', 'success');
+                
+                // Recarregar dispositivos após reconexão
+                setTimeout(() => {
+                    this.loadDevices();
+                }, 1000);
+            } else {
+                reconnectOutput.innerHTML = `<div class="error">❌ Erro: ${data.error || 'Erro desconhecido'}</div>`;
+                this.showNotification('Erro ao reconectar saída MIDI', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Erro ao reconectar saída MIDI:', error);
+            const reconnectOutput = document.getElementById('reconnect-output');
+            if (reconnectOutput) {
+                reconnectOutput.innerHTML = `<div class="error">❌ Erro de conexão: ${error.message}</div>`;
+            }
+            this.showNotification('Erro de conexão na reconexão', 'error');
+        }
+    }
+    
+    // Inicializar funcionalidades de checkup se estivermos na página de checkup
+    initCheckupPage() {
+        if (window.location.pathname === '/checkup') {
+            this.setupCheckupEventListeners();
+            console.log('✅ Funcionalidades de checkup inicializadas');
+        }
+    }
 }
 
-// Inicializa a aplicação quando o DOM estiver pronto
+// Inicializar aplicação
+const app = new RaspMIDI();
+
+// Inicializar checkup se necessário
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new RaspMIDI();
+    if (window.location.pathname === '/checkup') {
+        app.initCheckupPage();
+    }
 }); 

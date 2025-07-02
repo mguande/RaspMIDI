@@ -7,6 +7,7 @@ import logging
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from app.database.database import get_db
+import os
 
 api_bp = Blueprint('api', __name__)
 logger = logging.getLogger(__name__)
@@ -549,4 +550,153 @@ def get_active_patch():
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500 
+        }), 500
+
+@api_bp.route('/checkup/log', methods=['GET'])
+def checkup_log():
+    """Retorna as últimas linhas do log do sistema (logs/app.log)"""
+    try:
+        lines = int(request.args.get('lines', 50))
+        
+        # Tenta diferentes caminhos para o arquivo de log
+        possible_paths = [
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', '..', 'logs', 'app.log'),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'logs', 'app.log'),
+            '/home/matheus/RaspMIDI/logs/app.log',
+            'logs/app.log',
+            'app.log'
+        ]
+        
+        log_path = None
+        for path in possible_paths:
+            abs_path = os.path.abspath(path)
+            if os.path.exists(abs_path):
+                log_path = abs_path
+                break
+        
+        if not log_path:
+            # Se não encontrar o arquivo, retorna um log de exemplo
+            return jsonify({
+                'success': True, 
+                'log': f"Log do sistema - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nArquivo de log não encontrado nos caminhos:\n" + 
+                       "\n".join([f"- {os.path.abspath(p)}" for p in possible_paths]) +
+                       "\n\nSistema funcionando normalmente."
+            })
+        
+        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            all_lines = f.readlines()
+            last_lines = all_lines[-lines:] if lines > 0 else all_lines
+        return jsonify({'success': True, 'log': ''.join(last_lines)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@api_bp.route('/checkup/connectivity', methods=['POST'])
+def checkup_connectivity():
+    """Testa conectividade dos dispositivos cadastrados (entrada/saída)"""
+    try:
+        midi_controller = current_app.midi_controller
+        config = midi_controller.midi_config
+        device_status = midi_controller.get_device_status()
+        
+        input_device = config.get('input_device')
+        output_device = config.get('output_device')
+        
+        # Verifica status dos dispositivos específicos
+        zoom_connected = device_status.get('zoom_g3x', {}).get('connected', False)
+        chocolate_connected = device_status.get('chocolate', {}).get('connected', False)
+        
+        # Verifica conectividade geral
+        overall_connected = midi_controller.is_connected()
+        
+        # Verifica se os dispositivos configurados estão disponíveis
+        available_devices = midi_controller.get_available_devices()
+        input_available = input_device in [d.get('name') for d in available_devices.get('usb', []) + available_devices.get('bluetooth', [])]
+        output_available = output_device in [d.get('name') for d in available_devices.get('usb', []) + available_devices.get('bluetooth', [])]
+        
+        return jsonify({
+            'success': True, 
+            'input_device': input_device, 
+            'input_available': input_available,
+            'output_device': output_device, 
+            'output_available': output_available,
+            'zoom_g3x_connected': zoom_connected,
+            'chocolate_connected': chocolate_connected,
+            'overall_connected': overall_connected,
+            'device_status': device_status
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@api_bp.route('/checkup/devices', methods=['GET'])
+def checkup_devices():
+    """Lista dispositivos MIDI conectados (entrada e saída)"""
+    try:
+        midi_controller = current_app.midi_controller
+        
+        # Escaneia dispositivos disponíveis
+        scan_result = midi_controller.scan_devices()
+        
+        # Obtém dispositivos disponíveis
+        available_devices = midi_controller.get_available_devices()
+        
+        # Obtém status detalhado dos dispositivos
+        device_status = midi_controller.get_device_status()
+        
+        # Formata resposta
+        devices = {
+            'inputs': available_devices.get('usb', []) + available_devices.get('bluetooth', []),
+            'outputs': available_devices.get('usb', []) + available_devices.get('bluetooth', []),
+            'scan_result': scan_result,
+            'device_status': device_status,
+            'connected': midi_controller.is_connected()
+        }
+        
+        return jsonify({'success': True, 'devices': devices})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@api_bp.route('/checkup/reconnect_input', methods=['POST'])
+def checkup_reconnect_input():
+    """Reconecta o dispositivo de entrada MIDI configurado"""
+    try:
+        midi_controller = current_app.midi_controller
+        config = midi_controller.midi_config
+        input_device = config.get('input_device')
+        
+        if not input_device:
+            return jsonify({'success': False, 'error': 'Nenhum dispositivo de entrada configurado'})
+        
+        # Tenta reconectar usando os métodos disponíveis
+        if 'chocolate' in input_device.lower():
+            result = midi_controller.force_reconnect_chocolate()
+        elif 'zoom' in input_device.lower():
+            result = midi_controller.force_reconnect_zoom_g3x()
+        else:
+            # Reconexão genérica
+            result = midi_controller._connect_input_device(input_device)
+        
+        return jsonify({'success': result, 'device': input_device})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@api_bp.route('/checkup/reconnect_output', methods=['POST'])
+def checkup_reconnect_output():
+    """Reconecta o dispositivo de saída MIDI configurado"""
+    try:
+        midi_controller = current_app.midi_controller
+        config = midi_controller.midi_config
+        output_device = config.get('output_device')
+        
+        if not output_device:
+            return jsonify({'success': False, 'error': 'Nenhum dispositivo de saída configurado'})
+        
+        # Tenta reconectar usando os métodos disponíveis
+        if 'zoom' in output_device.lower():
+            result = midi_controller.force_reconnect_zoom_g3x()
+        else:
+            # Reconexão genérica
+            result = midi_controller._connect_output_device(output_device)
+        
+        return jsonify({'success': result, 'device': output_device})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}) 

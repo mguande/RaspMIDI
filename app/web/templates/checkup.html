@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=480, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Checkup/Reparos - RaspMIDI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f1419 0%, #1a1e2a 50%, #0f1419 100%);
+            color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            font-size: 14px;
+            min-height: 100vh;
+        }
+        .checkup-container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 8px 4px 4px 4px;
+            height: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+        .checkup-header {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 0.3rem;
+            text-align: left;
+        }
+        .checkup-menu {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .checkup-menu-btn {
+            flex: 1;
+            background: #23283a;
+            color: #ffd700;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.2rem;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .checkup-menu-btn.active, .checkup-menu-btn:focus {
+            background: #ffd700;
+            color: #23283a;
+        }
+        .checkup-content {
+            flex: 1;
+            background: #181c24;
+            border-radius: 0.7rem;
+            padding: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .log-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .log-shell, .connect-shell {
+            background: #11141a;
+            color: #0f0;
+            font-family: 'Fira Mono', 'Courier New', monospace;
+            font-size: 0.95rem;
+            border-radius: 0.4rem;
+            padding: 0.5rem;
+            height: 110px;
+            overflow-y: auto;
+            margin-top: 0.2rem;
+            box-shadow: 0 1px 4px #000a;
+        }
+        .connect-controls {
+            display: flex;
+            gap: 0.3rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .connect-btn {
+            flex: 1 1 40%;
+            background: #23283a;
+            color: #ffd700;
+            border: none;
+            border-radius: 0.4rem;
+            padding: 0.4rem 0.2rem;
+            font-size: 0.95rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .connect-btn:active, .connect-btn:focus {
+            background: #ffd700;
+            color: #23283a;
+        }
+        @media (max-width: 600px), (max-width: 480px) {
+            .checkup-container {
+                max-width: 480px;
+                height: 320px;
+                padding: 2px;
+            }
+            .checkup-header {
+                font-size: 1.1rem;
+            }
+            .checkup-menu-btn, .connect-btn {
+                font-size: 0.9rem;
+                padding: 0.3rem 0.1rem;
+            }
+            .log-shell, .connect-shell {
+                font-size: 0.8rem;
+                height: 90px;
+            }
+            .connect-controls {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+        }
+        
+        @media (max-width: 320px) {
+            .checkup-container {
+                padding: 1px;
+            }
+            .checkup-header {
+                font-size: 1rem;
+            }
+            .checkup-menu-btn, .connect-btn {
+                font-size: 0.8rem;
+                padding: 0.2rem 0.1rem;
+            }
+            .connect-controls {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="checkup-container">
+        <!-- Header com botão voltar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+            <div class="checkup-header">🛠️ Checkup / Reparos</div>
+            <button onclick="window.location.href='/'" class="btn btn-secondary" style="font-size: 0.9rem; padding: 0.3rem 0.6rem; border-radius: 0.4rem; background: #444a5a; color: #fff; border: none; cursor: pointer;">
+                ← Voltar
+            </button>
+        </div>
+        
+        <!-- Botões de ação no topo -->
+        <div class="checkup-menu">
+            <button class="checkup-menu-btn active" id="menu-log" onclick="showCheckupTab('log')">Log do Sistema</button>
+            <button class="checkup-menu-btn" id="menu-connect" onclick="showCheckupTab('connect')">Conectividade</button>
+        </div>
+        <div class="checkup-content" id="checkup-log">
+            <div class="log-controls">
+                <label for="log-lines">Linhas:</label>
+                <select id="log-lines">
+                    <option value="10">10</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                </select>
+                <button class="btn btn-primary" onclick="loadLog()">Ler Log</button>
+            </div>
+            <div class="log-shell" id="log-shell">Selecione a quantidade e clique em Ler Log.</div>
+        </div>
+        <div class="checkup-content" id="checkup-connect" style="display:none;">
+            <!-- Botões de ação organizados em grid responsivo -->
+            <div class="connect-controls" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.3rem; margin-bottom: 0.5rem;">
+                <button class="connect-btn" onclick="testConnectivity()" style="flex: none;">Testar Conectividade</button>
+                <button class="connect-btn" onclick="listDevices()" style="flex: none;">Listar Dispositivos</button>
+                <button class="connect-btn" onclick="reconnectInput()" style="flex: none;">Reconectar Entrada</button>
+                <button class="connect-btn" onclick="reconnectOutput()" style="flex: none;">Reconectar Saída</button>
+            </div>
+            <div class="connect-shell" id="connect-shell">Escolha uma ação para ver o resultado.</div>
+        </div>
+    </div>
+    <script>
+        function showCheckupTab(tab) {
+            document.getElementById('checkup-log').style.display = (tab === 'log') ? '' : 'none';
+            document.getElementById('checkup-connect').style.display = (tab === 'connect') ? '' : 'none';
+            document.getElementById('menu-log').classList.toggle('active', tab === 'log');
+            document.getElementById('menu-connect').classList.toggle('active', tab === 'connect');
+        }
+
+        async function loadLog() {
+            const lines = document.getElementById('log-lines').value;
+            const shell = document.getElementById('log-shell');
+            shell.textContent = 'Carregando log...';
+            try {
+                const resp = await fetch(`/api/checkup/log?lines=${lines}`);
+                const data = await resp.json();
+                if (data.success) {
+                    shell.textContent = data.log || '(Log vazio)';
+                } else {
+                    shell.textContent = 'Erro: ' + (data.error || 'Falha ao ler log.');
+                }
+            } catch (e) {
+                shell.textContent = 'Erro de conexão ao ler log.';
+            }
+        }
+
+        async function testConnectivity() {
+            const shell = document.getElementById('connect-shell');
+            shell.textContent = 'Testando conectividade...';
+            try {
+                const resp = await fetch('/api/checkup/connectivity', {method: 'POST'});
+                const data = await resp.json();
+                if (data.success) {
+                    shell.textContent = `Entrada: ${data.input_device} (${data.input_connected ? 'Conectado' : 'Desconectado'})\nSaída: ${data.output_device} (${data.output_connected ? 'Conectado' : 'Desconectado'})`;
+                } else {
+                    shell.textContent = 'Erro: ' + (data.error || 'Falha ao testar conectividade.');
+                }
+            } catch (e) {
+                shell.textContent = 'Erro de conexão ao testar conectividade.';
+            }
+        }
+
+        async function listDevices() {
+            const shell = document.getElementById('connect-shell');
+            shell.textContent = 'Listando dispositivos...';
+            try {
+                const resp = await fetch('/api/checkup/devices');
+                const data = await resp.json();
+                if (data.success) {
+                    shell.textContent = (data.devices && data.devices.length)
+                        ? data.devices.map(d => `- ${d}`).join('\n')
+                        : '(Nenhum dispositivo encontrado)';
+                } else {
+                    shell.textContent = 'Erro: ' + (data.error || 'Falha ao listar dispositivos.');
+                }
+            } catch (e) {
+                shell.textContent = 'Erro de conexão ao listar dispositivos.';
+            }
+        }
+
+        async function reconnectInput() {
+            const shell = document.getElementById('connect-shell');
+            shell.textContent = 'Reconectando entrada...';
+            try {
+                const resp = await fetch('/api/checkup/reconnect_input', {method: 'POST'});
+                const data = await resp.json();
+                shell.textContent = data.success ? 'Entrada reconectada com sucesso!' : ('Erro: ' + (data.error || 'Falha ao reconectar entrada.'));
+            } catch (e) {
+                shell.textContent = 'Erro de conexão ao reconectar entrada.';
+            }
+        }
+
+        async function reconnectOutput() {
+            const shell = document.getElementById('connect-shell');
+            shell.textContent = 'Reconectando saída...';
+            try {
+                const resp = await fetch('/api/checkup/reconnect_output', {method: 'POST'});
+                const data = await resp.json();
+                shell.textContent = data.success ? 'Saída reconectada com sucesso!' : ('Erro: ' + (data.error || 'Falha ao reconectar saída.'));
+            } catch (e) {
+                shell.textContent = 'Erro de conexão ao reconectar saída.';
+            }
+        }
+    </script>
+</body>
+</html> 
