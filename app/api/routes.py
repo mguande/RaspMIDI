@@ -66,6 +66,13 @@ def create_patch():
         data = request.get_json()
         logger.info(f"📋 Dados recebidos: {data}")
         
+        # Log detalhado dos campos zoom
+        logger.info(f"🔍 [API] Campos Zoom recebidos:")
+        logger.info(f"   zoom_bank: '{data.get('zoom_bank')}' (tipo: {type(data.get('zoom_bank'))})")
+        logger.info(f"   zoom_bank_letter: '{data.get('zoom_bank_letter')}' (tipo: {type(data.get('zoom_bank_letter'))})")
+        logger.info(f"   zoom_patch: {data.get('zoom_patch')} (tipo: {type(data.get('zoom_patch'))})")
+        logger.info(f"   program: {data.get('program')} (tipo: {type(data.get('program'))})")
+        
         if not data or 'name' not in data:
             logger.error("❌ Nome do patch é obrigatório")
             return jsonify({
@@ -122,6 +129,13 @@ def update_patch(patch_id):
         data = request.get_json()
         logger.info(f"📋 Dados recebidos: {data}")
         
+        # Log detalhado dos campos zoom
+        logger.info(f"🔍 [API] Campos Zoom recebidos:")
+        logger.info(f"   zoom_bank: '{data.get('zoom_bank')}' (tipo: {type(data.get('zoom_bank'))})")
+        logger.info(f"   zoom_bank_letter: '{data.get('zoom_bank_letter')}' (tipo: {type(data.get('zoom_bank_letter'))})")
+        logger.info(f"   zoom_patch: {data.get('zoom_patch')} (tipo: {type(data.get('zoom_patch'))})")
+        logger.info(f"   program: {data.get('program')} (tipo: {type(data.get('program'))})")
+        
         if not data:
             logger.error("❌ Dados do patch são obrigatórios")
             return jsonify({
@@ -167,14 +181,15 @@ def update_patch(patch_id):
         
         # 4. Campos opcionais que podem ser atualizados
         optional_fields = [
-            'input_channel', 'zoom_bank', 'zoom_patch', 'program', 
+            'input_channel', 'zoom_bank', 'zoom_patch', 'zoom_bank_letter', 'program', 
             'cc', 'value', 'note', 'velocity', 'effects'
         ]
         
         for field in optional_fields:
             if field in data:
+                logger.info(f"🔍 Processando campo {field}: {data[field]} (tipo: {type(data[field])})")
                 # Validação de tipo para campos numéricos
-                if field in ['input_channel', 'zoom_bank', 'zoom_patch', 'program', 'cc', 'value', 'note', 'velocity']:
+                if field in ['input_channel', 'zoom_patch', 'program', 'cc', 'value', 'note', 'velocity']:
                     try:
                         if data[field] is not None:
                             merged_data[field] = int(data[field])
@@ -184,8 +199,9 @@ def update_patch(patch_id):
                         logger.warning(f"⚠️ Campo {field} com valor inválido: {data[field]}, mantendo valor atual")
                         continue
                 else:
+                    # Campos de string (zoom_bank, zoom_bank_letter, etc.)
                     merged_data[field] = data[field]
-                logger.info(f"✅ Campo {field} atualizado: {data[field]}")
+                logger.info(f"✅ Campo {field} atualizado: {data[field]} -> {merged_data[field]}")
             else:
                 logger.info(f"ℹ️ Campo {field} não enviado, mantendo valor atual: {merged_data.get(field)}")
         
@@ -197,7 +213,8 @@ def update_patch(patch_id):
         
         # Validação de campos obrigatórios
         for field in required_fields:
-            if not merged_data.get(field):
+            field_value = merged_data.get(field)
+            if field_value is None or field_value == "":
                 logger.error(f"❌ Campo obrigatório {field} está vazio após mesclagem")
                 return jsonify({
                     'success': False,

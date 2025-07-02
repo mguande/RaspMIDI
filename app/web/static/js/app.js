@@ -1409,6 +1409,9 @@ class RaspMIDI {
             for (let [key, value] of formData.entries()) {
                 console.log(`  ${key}: ${value}`);
             }
+            // Log específico para zoom_bank_letter
+            const zoomBankLetter = formData.get('zoom_bank_letter');
+            console.log(`🔍 [DEBUG] zoom_bank_letter no FormData: "${zoomBankLetter}" (tipo: ${typeof zoomBankLetter})`);
             
             const patchData = {
                 name: formData.get('name'),
@@ -1434,17 +1437,11 @@ class RaspMIDI {
                 console.log("🏦 Banco Zoom:", zoomBank, "Patch Local:", localPatchNumber, "Config Efeitos:", enableEffectsConfig);
                 
                 if (zoomBank && localPatchNumber) {
+                    // Garante que ambos os campos tenham o mesmo valor
                     patchData.zoom_bank = zoomBank;
+                    patchData.zoom_bank_letter = zoomBank;
                     patchData.program = parseInt(localPatchNumber); // Salva o número local (0-9)
-                    
-                    // Adiciona a letra do banco
-                    const zoomBankLetter = formData.get('zoom_bank_letter');
-                    if (zoomBankLetter) {
-                        patchData.zoom_bank_letter = zoomBankLetter.toUpperCase();
-                    } else {
-                        // Se não foi preenchido, usa o valor do banco selecionado
-                        patchData.zoom_bank_letter = zoomBank;
-                    }
+                    console.log(`[Criação] Banco definido: zoom_bank=${zoomBank}, zoom_bank_letter=${zoomBank}`);
 
                     // Calcula e salva o número global do patch
                     patchData.zoom_patch = this.convertToGlobalPatchNumber(zoomBank, localPatchNumber);
@@ -1511,6 +1508,13 @@ class RaspMIDI {
             }
             
             console.log("📤 Enviando dados para API:", patchData);
+            
+            // Log detalhado dos campos zoom
+            console.log(`🔍 [DEBUG] Dados Zoom finais:`);
+            console.log(`   zoom_bank: "${patchData.zoom_bank}" (tipo: ${typeof patchData.zoom_bank})`);
+            console.log(`   zoom_bank_letter: "${patchData.zoom_bank_letter}" (tipo: ${typeof patchData.zoom_bank_letter})`);
+            console.log(`   zoom_patch: ${patchData.zoom_patch} (tipo: ${typeof patchData.zoom_patch})`);
+            console.log(`   program: ${patchData.program} (tipo: ${typeof patchData.program})`);
             
             // Criar AbortController para timeout
             const controller = new AbortController();
@@ -1702,6 +1706,12 @@ class RaspMIDI {
                 // Banco e patch Zoom
                 if (patch.zoom_bank) {
                     this.setFormValue('zoom_bank', patch.zoom_bank);
+                    
+                    // Garante que ambos os campos tenham o mesmo valor
+                    const bankValue = patch.zoom_bank_letter || patch.zoom_bank;
+                    this.setFormValue('zoom_bank_letter', bankValue);
+                    console.log(`[Edição] Banco definido: zoom_bank=${patch.zoom_bank}, zoom_bank_letter=${bankValue}`);
+                    
                     this.handleZoomBankChange(patch.zoom_bank);
                     
                     // Carrega patches disponíveis incluindo o do patch atual
@@ -1873,20 +1883,16 @@ class RaspMIDI {
                 console.log("🏦 Banco Zoom:", zoomBank, "Patch Local:", localPatchNumber, "Config Efeitos:", enableEffectsConfig);
                 
                 if (zoomBank && localPatchNumber) {
+                    // Garante que ambos os campos tenham o mesmo valor
                     patchData.zoom_bank = zoomBank;
-                    patchData.program = parseInt(localPatchNumber); // Salva o número local (0-9)
-                    
-                    // Adiciona a letra do banco
-                    const zoomBankLetter = formData.get('zoom_bank_letter');
-                    if (zoomBankLetter) {
-                        patchData.zoom_bank_letter = zoomBankLetter.toUpperCase();
-                    } else {
-                        // Se não foi preenchido, usa o valor do banco selecionado
-                        patchData.zoom_bank_letter = zoomBank;
-                    }
+                    patchData.zoom_bank_letter = zoomBank;
+                    console.log(`[Atualização] Banco definido: zoom_bank=${zoomBank}, zoom_bank_letter=${zoomBank}`);
 
                     // Calcula e salva o número global do patch
                     patchData.zoom_patch = this.convertToGlobalPatchNumber(zoomBank, localPatchNumber);
+                    
+                    // Para patches Zoom, o program é o número local (0-9) que será enviado para a Zoom
+                    patchData.program = parseInt(localPatchNumber);
                     
                     // Define o tipo de comando baseado na configuração de efeitos
                     if (enableEffectsConfig) {
@@ -1950,6 +1956,13 @@ class RaspMIDI {
             }
             
             console.log("📤 Enviando dados para API:", patchData);
+            
+            // Log detalhado dos campos zoom
+            console.log(`🔍 [DEBUG] Dados Zoom finais:`);
+            console.log(`   zoom_bank: "${patchData.zoom_bank}" (tipo: ${typeof patchData.zoom_bank})`);
+            console.log(`   zoom_bank_letter: "${patchData.zoom_bank_letter}" (tipo: ${typeof patchData.zoom_bank_letter})`);
+            console.log(`   zoom_patch: ${patchData.zoom_patch} (tipo: ${typeof patchData.zoom_patch})`);
+            console.log(`   program: ${patchData.program} (tipo: ${typeof patchData.program})`);
             
             // Criar AbortController para timeout
             const controller = new AbortController();

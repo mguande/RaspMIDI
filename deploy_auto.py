@@ -69,33 +69,31 @@ def copy_file_to_raspberry(local_file, remote_path):
         return False
 
 def restart_application():
-    """Reinicia a aplicação no Raspberry Pi"""
-    print("🔄 Reiniciando aplicação...")
+    """Reinicia a aplicação no Raspberry Pi usando systemd"""
+    print("🔄 Reiniciando aplicação via systemd...")
     
-    # Para o processo atual
-    print("  - Finalizando processo existente (se houver)...")
+    # Para o processo manual se estiver rodando
+    print("  - Finalizando processo manual (se houver)...")
     exit_code, output, error = run_ssh_command("pkill -f 'python run.py'")
     if exit_code == 0:
-        print("    ✅ Processo anterior finalizado.")
+        print("    ✅ Processo manual finalizado.")
     elif exit_code == 1:
-        print("    ℹ️  Aplicação não estava em execução.")
+        print("    ℹ️  Nenhum processo manual em execução.")
     else:
-        print(f"    ⚠️  Erro ao tentar finalizar o processo: {error}")
+        print(f"    ⚠️  Erro ao tentar finalizar processo manual: {error}")
     
     # Aguarda um pouco
     time.sleep(2)
     
-    # Inicia a aplicação
-    print("  - Iniciando a aplicação em background...")
-    start_cmd = f"cd {RASPBERRY_PATH} && nohup {RASPBERRY_PATH}/venv/bin/python run.py > logs/app.log 2>&1 &"
-    exit_code, output, error = run_ssh_command(start_cmd)
+    # Reinicia o serviço systemd
+    print("  - Reiniciando serviço systemd...")
+    exit_code, output, error = run_ssh_command("sudo systemctl restart raspmidi.service")
     
     if exit_code == 0:
-        print("    ✅ Comando de inicialização enviado com sucesso.")
+        print("    ✅ Serviço systemd reiniciado com sucesso.")
     else:
-        print(f"    ⚠️  Comando de inicialização retornou código {exit_code}. A verificação de status confirmará o sucesso.")
-        if error:
-            print(f"       Erro reportado: {error}")
+        print(f"    ❌ Erro ao reiniciar serviço systemd: {error}")
+        return False
 
     return True
 
@@ -103,17 +101,28 @@ def check_application_status():
     """Verifica o status da aplicação"""
     print("🔍 Verificando status da aplicação...")
     
-    exit_code, output, error = run_ssh_command("ps aux | grep 'python run.py' | grep -v grep")
+    # Verifica o status do serviço systemd
+    exit_code, output, error = run_ssh_command("sudo systemctl is-active raspmidi.service")
     
-    if exit_code == 0 and output:
-        print("✅ Aplicação está rodando")
-        print("📋 Processos:")
-        for line in output.split('\n'):
-            if line.strip():
-                print(f"   {line}")
-        return True
+    if exit_code == 0 and "active" in output:
+        print("✅ Serviço systemd está ativo")
+        
+        # Verifica se o processo Python está rodando
+        exit_code2, output2, error2 = run_ssh_command("ps aux | grep 'python run.py' | grep -v grep")
+        
+        if exit_code2 == 0 and output2:
+            print("✅ Processo Python está rodando")
+            print("📋 Processos:")
+            for line in output2.split('\n'):
+                if line.strip():
+                    print(f"   {line}")
+            return True
+        else:
+            print("❌ Processo Python não está rodando")
+            return False
     else:
-        print("❌ Aplicação não está rodando")
+        print("❌ Serviço systemd não está ativo")
+        print(f"Status: {output}")
         return False
 
 def test_api():
@@ -213,9 +222,7 @@ def main():
             print("\n❌ Deploy concluído com falhas.")
     else:
         print("\n❌ Deploy falhou na cópia de arquivos!")
-    
-    start_systemd_service()
-    
+
     return all_success
 
 if __name__ == "__main__":

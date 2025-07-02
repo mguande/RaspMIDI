@@ -679,7 +679,7 @@
                     document.getElementById('bank-name').textContent = activePatch.name;
                     
                     // Atualiza o visual do Chocolate se o patch ativo for do Chocolate
-                    if (activePatch.input_device === 'Chocolate MIDI' && activePatch.input_channel !== undefined) {
+                    if (activePatch.input_device === 'Chocolate MIDI In' && activePatch.input_channel !== undefined) {
                         const bankNumber = parseInt(activePatch.input_channel);
                         // Busca o status de conexão do Chocolate
                         const devicesResponse = await fetch('/api/midi/devices/status_detailed');
@@ -793,7 +793,7 @@
             
             // Calcula o banco atual baseado no patch ativo
             let currentBank = 0;
-            if (activePatch && activePatch.input_device === 'Chocolate MIDI' && activePatch.input_channel !== undefined) {
+            if (activePatch && activePatch.input_device === 'Chocolate MIDI In' && activePatch.input_channel !== undefined) {
                 currentBank = parseInt(activePatch.input_channel);
             }
             
@@ -978,9 +978,9 @@
                     const inputPatches = data.data.filter(patch => patch.input_device === inputDevice);
                     console.log(`🎹 Patches que usam "${inputDevice}" como entrada: ${inputPatches.length}`);
                     
-                    // 4. Buscar patch com o program específico
-                    const matchingPatches = inputPatches.filter(patch => patch.program === program);
-                    console.log(`🎯 Patches com program ${program}: ${matchingPatches.length}`);
+                    // 4. Buscar patch com o input_channel específico (canal MIDI do Chocolate)
+                    const matchingPatches = inputPatches.filter(patch => patch.input_channel === program);
+                    console.log(`🎯 Patches com input_channel ${program}: ${matchingPatches.length}`);
                     
                     if (matchingPatches.length > 0) {
                         const patch = matchingPatches[0];
@@ -991,24 +991,11 @@
                         console.log('🎹 Chamando activatePatch...');
                         await activatePatch(patch);
                     } else {
-                        // Nenhum patch encontrado para esse banco/programa
+                        // Nenhum patch encontrado para esse program
+                        console.log('❌ Nenhum patch encontrado para program', program);
                         document.getElementById('bank-name').textContent = 'Sem banco cadastrado.';
-                        // Tenta buscar por input_channel como fallback
-                        const patchesByChannel = inputPatches.filter(patch => patch.input_channel === program);
-                        console.log(`🔍 Tentativa por input_channel ${program}: ${patchesByChannel.length} patches`);
-                        
-                        if (patchesByChannel.length > 0) {
-                            const patch = patchesByChannel[0];
-                            console.log(`✅ Patch encontrado por input_channel: ${patch.name}`);
-                            console.log('✅ Dados completos do patch:', JSON.stringify(patch, null, 2));
-                            // Ativa o patch no sistema
-                            console.log('🎹 Chamando activatePatch para patch por input_channel...');
-                            await activatePatch(patch);
-                        } else {
-                            console.log('❌ Nenhum patch encontrado');
-                            // Só limpa o display da Zoom, não altera o título
-                            updateZoomDisplay('-', '-', false);
-                        }
+                        // Limpa o display da Zoom
+                        updateZoomDisplay('-', '-', false);
                     }
                 } else {
                     console.log(`❌ Erro na resposta da API de patches`);
