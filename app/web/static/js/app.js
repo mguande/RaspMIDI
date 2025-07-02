@@ -870,36 +870,29 @@ class RaspMIDI {
             deviceIcon = '📤'; // Ícone de saída
         }
         
-        // Define o botão baseado no status de seleção
+        // Ícones FontAwesome para entrada/saída
+        const iconIn = '<i class="fa fa-sign-in-alt"></i>';
+        const iconOut = '<i class="fa fa-sign-out-alt"></i>';
+        const badgeType = device.type === 'input'
+            ? `<span class="badge input">${iconIn} <span style=\"font-size:0.8em;\">IN</span></span>`
+            : `<span class="badge output">${iconOut} <span style=\"font-size:0.8em;\">OUT</span></span>`;
+        const statusDot = `<span class="status-dot ${statusClass}"></span>`;
+        // Botão de seleção padrão
         let buttonHtml = '';
         if (isSelected) {
-            buttonHtml = `
-                <button class="btn btn-success btn-small" disabled>
-                    <i class="fas fa-check"></i> Selecionado
-                </button>
-            `;
+            buttonHtml = `<button class='select-btn selected' disabled><i class='fa fa-check'></i> Selecionado</button>`;
         } else {
-            buttonHtml = `
-                <button class="btn btn-primary btn-small" onclick="app.selectDevice('${device.name}', '${device.type}')">
-                    Selecionar
-                </button>
-            `;
+            buttonHtml = `<button class='select-btn' onclick=\"app.selectDevice('${device.name}', '${device.type}')\"><i class='fa fa-mouse-pointer'></i> Selecionar</button>`;
         }
-        
         return `
-            <div class="device-item ${statusClass} ${deviceClass} ${isSelected ? 'selected' : ''}">
+            <div class="device-card ${statusClass} ${isSelected ? 'selected' : ''}">
                 <div class="device-header">
-                    <span class="device-icon">${deviceIcon}</span>
-                    <div class="device-name">${device.name}</div>
+                    <span class="device-name" style="white-space:normal;">${device.real_name || device.name}</span>
+                    ${statusDot}
+                    ${badgeType}
                 </div>
-                <div class="device-type">${device.type.toUpperCase()}</div>
-                <div class="device-status">
-                    <div class="device-status-indicator ${statusClass}"></div>
-                    <span>${statusText}</span>
-                </div>
-                <div class="device-actions">
-                    ${buttonHtml}
-                </div>
+                <div class="device-details">${device.port || ''}</div>
+                ${buttonHtml}
             </div>
         `;
     }
@@ -3958,6 +3951,24 @@ class RaspMIDI {
         if (window.location.pathname === '/checkup') {
             this.setupCheckupEventListeners();
             console.log('✅ Funcionalidades de checkup inicializadas');
+        }
+    }
+
+    selectDeviceOption(name, value) {
+        if (value === 'input') {
+            this.selectDevice(name, 'input');
+        } else if (value === 'output') {
+            this.selectDevice(name, 'output');
+        } else {
+            // Desmarcar: remove seleção se for o dispositivo atual
+            if (this.midiConfig.input_device === name) {
+                this.midiConfig.input_device = '';
+            }
+            if (this.midiConfig.output_device === name) {
+                this.midiConfig.output_device = '';
+            }
+            this.renderDevices();
+            this.saveMidiConfig();
         }
     }
 }
