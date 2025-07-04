@@ -31,28 +31,7 @@
             overflow: hidden;
         }
         
-        .back-btn {
-            position: fixed;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(145deg, #2a2e3a, #1a1e2a);
-            color: #fff;
-            border: none;
-            border-radius: 50%;
-            width: 15px;
-            height: 15px;
-            font-size: 0.6rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 1000;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-        }
-        
-        .back-btn:hover {
-            background: linear-gradient(145deg, #3a3e4a, #2a2e3a);
-            transform: translateY(-1px);
-            box-shadow: 0 3px 12px rgba(0,0,0,0.4);
-        }
+        /* Botão voltar removido da posição fixa - agora está na caixa de botões */
         
         .palco-header {
             text-align: center;
@@ -77,9 +56,22 @@
         
         .status-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr 1fr min-content;
             gap: 0.5rem;
             margin-top: 0.5rem;
+            align-items: stretch;
+        }
+        
+        .device-box, .chocolate-box, .zoom-display {
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding-top: 0.5rem;
         }
         
         .status-card {
@@ -100,6 +92,104 @@
             right: 0;
             height: 2px;
             background: linear-gradient(90deg, #00ff88, #00ccff);
+        }
+        
+        .buttons-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+            justify-content: flex-start;
+            min-width: 48px;
+            width: 56px;
+        }
+        
+        .action-btn {
+            background: linear-gradient(145deg, #2a2e3a, #1a1e2a);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.3rem;
+            width: 40px;
+            height: 40px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .action-btn:hover {
+            background: linear-gradient(145deg, #3a3e4a, #2a2e3a);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.4);
+        }
+        
+        .action-btn.back-btn {
+            background: linear-gradient(145deg, #3a2e2e, #2a1e1e);
+            border-color: rgba(255,100,100,0.3);
+        }
+        
+        .action-btn.back-btn:hover {
+            background: linear-gradient(145deg, #4a3e3e, #3a2e2e);
+            border-color: rgba(255,100,100,0.6);
+        }
+        
+        .action-btn.refresh-btn {
+            background: linear-gradient(145deg, #2e3a2e, #1e2a1e);
+            border-color: rgba(100,255,100,0.3);
+        }
+        
+        .action-btn.refresh-btn:hover {
+            background: linear-gradient(145deg, #3e4a3e, #2e3a2e);
+            border-color: rgba(100,255,100,0.6);
+        }
+        
+        .action-btn.edit-btn {
+            background: linear-gradient(145deg, #2e2e3a, #1e1e2a);
+            border-color: rgba(100,100,255,0.3);
+        }
+        
+        .action-btn.edit-btn:hover {
+            background: linear-gradient(145deg, #3e3e4a, #2e2e3a);
+            border-color: rgba(100,100,255,0.6);
+        }
+        
+        .device-box {
+            background: linear-gradient(145deg, #1a1e2a, #23283a);
+            border-radius: 0.3rem;
+            padding: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .device-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00ff88, #00ccff 50%, #ffd700 100%);
+        }
+        .device-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .device-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 0 4px #00ff88, 0 0 2px #ffd700;
         }
         
         .card-title {
@@ -230,22 +320,28 @@
             background: linear-gradient(90deg, #00ff88, #00ccff);
         }
         
-        .pedal-title {
-            font-size: 0.7rem;
+        .pedal-title, .zoom-title {
+            font-size: 0.9rem;
             font-weight: bold;
             color: #ffb300;
             margin-bottom: 0.3rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         .pedal-display {
             /* Removido: width, height, font-family, font-size, cor, etc. */
         }
         
-        .pedal-leds {
+        .pedal-leds, .zoom-effects {
             display: flex;
+            flex-direction: row;
+            align-items: center;
             justify-content: center;
             gap: 0.3rem;
-            margin-top: 0.3rem;
+            margin-top: 0.2rem;
+            margin-bottom: 0.2rem;
         }
         
         .led {
@@ -288,13 +384,6 @@
             background: linear-gradient(90deg, #ff6b35, #ffd700);
         }
         
-        .zoom-title {
-            font-size: 0.7rem;
-            font-weight: bold;
-            color: #ffb300;
-            margin-bottom: 0.3rem;
-        }
-        
         .zoom-screen {
             /* Removido: width, height, font-family, font-size, cor, etc. */
         }
@@ -306,7 +395,7 @@
             border: 1px solid #333;
             border-radius: 0.2rem;
             padding: 0.3rem;
-            margin: 0.3rem 0;
+            margin: 0.3rem 0 0.2rem 0;
             font-family: 'Courier New', monospace;
             font-size: 1.2rem;
             color: #00ff00;
@@ -330,14 +419,27 @@
                 grid-template-columns: 1fr;
             }
             
+            .buttons-card {
+                flex-direction: row;
+                width: 100%;
+                min-width: 0;
+                padding: 0.3rem 0.2rem;
+            }
+            
+            .action-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 1.1rem;
+            }
+            
             .palco-title {
                 font-size: 2rem;
             }
             
-                         .bank-name {
-                 font-size: 2.5rem;
-             }
-         }
+            .bank-name {
+                font-size: 2.5rem;
+            }
+        }
         
         .info-row {
             display: flex;
@@ -395,19 +497,6 @@
             background: #1a3a1a;
             color: #0f0;
             border: 1px solid #0f0;
-        }
-        
-        .chocolate-box {
-            background: #1a1e2a;
-            border: 2px solid #333;
-            border-radius: 1rem;
-            padding: 1.5rem;
-            text-align: center;
-            min-height: 200px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
         }
         
         .chocolate-pedal-visual {
@@ -510,21 +599,13 @@
             text-shadow: 0 0 5px #0f0;
         }
         
-        .zoom-effects {
-            display: flex;
-            justify-content: space-between;
-            gap: 0.3rem;
-            margin-top: 0.5rem;
-            width: 110px;
-        }
-        
         .zoom-effect {
-            width: 20px;
-            height: 12px;
-            background: #0f0;
-            border: 1px solid #0f0;
+            width: 10px;
+            height: 18px;
             border-radius: 2px;
-            box-shadow: 0 0 5px #0f0;
+            border: 1px solid #ffd700;
+            background: #ffd700;
+            box-shadow: 0 0 8px #ffd700;
             transition: all 0.3s ease;
         }
         
@@ -542,42 +623,13 @@
 </head>
 <body>
     <div class="palco-container">
-        <button class="back-btn" onclick="window.location.href='/'">←</button>
-        
         <div class="palco-header">
             <div class="bank-name" id="bank-name">Aguardando Comando</div>
         </div>
         
         <div class="status-grid" id="status-grid">
             <!-- Status dos dispositivos será renderizado aqui dinamicamente -->
-        </div>
-        
-        <div class="displays-container">
-            <!-- Chocolate Pedal Display -->
-            <div class="chocolate-pedal" id="chocolate-pedal">
-                <div class="pedal-title">🎹 Chocolate MIDI</div>
-                <div class="display-screen chocolate-display" id="chocolate-display">000</div>
-                <div class="pedal-leds">
-                    <div class="led" id="led-0"></div>
-                    <div class="led" id="led-1"></div>
-                    <div class="led" id="led-2"></div>
-                    <div class="led" id="led-3"></div>
-                </div>
-            </div>
-            
-                    <!-- Zoom Display -->
-        <div class="zoom-display" id="zoom-display">
-            <div class="zoom-title">🎛️ Zoom G3X</div>
-            <div class="zoom-screen display-screen" id="zoom-display-text">---</div>
-            <div class="zoom-effects">
-                <div class="zoom-effect" id="zoom-effect-1"></div>
-                <div class="zoom-effect" id="zoom-effect-2"></div>
-                <div class="zoom-effect" id="zoom-effect-3"></div>
-                <div class="zoom-effect" id="zoom-effect-4"></div>
-                <div class="zoom-effect" id="zoom-effect-5"></div>
-                <div class="zoom-effect" id="zoom-effect-6"></div>
-            </div>
-        </div>
+            <!-- Caixa de botões será adicionada aqui dinamicamente -->
         </div>
     </div>
     
@@ -724,114 +776,95 @@
             try {
                 const response = await fetch('/api/midi/devices/status_detailed');
                 const data = await response.json();
-                
-                const grid = document.getElementById('devices-grid');
+                const grid = document.getElementById('status-grid');
                 grid.innerHTML = '';
-                
                 if (data.success && Array.isArray(data.data)) {
-                    data.data.forEach(dev => {
-                        if (dev.type === 'chocolate') {
-                            // Para o Chocolate, usa o visual do pedal
-                            const box = createChocolatePedalBox(dev);
-                            grid.appendChild(box);
-                        } else {
-                            // Para outros dispositivos, usa o box padrão
-                            const box = createDeviceBox(dev);
-                            grid.appendChild(box);
-                        }
-                    });
+                    // Filtra apenas o primeiro Zoom G3X e o primeiro Chocolate MIDI
+                    const zoom = data.data.find(dev => dev.type === 'zoom_g3x');
+                    const chocolate = data.data.find(dev => dev.type === 'chocolate');
+                    if (zoom) grid.appendChild(createDeviceBox(zoom));
+                    if (chocolate) grid.appendChild(createChocolatePedalBox(chocolate));
                 }
+                // Adiciona a caixa de botões
+                const buttonsBox = createButtonsBox();
+                grid.appendChild(buttonsBox);
             } catch (error) {
                 console.error('Erro ao carregar dispositivos:', error);
             }
         }
         
+        function createButtonsBox() {
+            const box = document.createElement('div');
+            box.className = 'device-box buttons-card';
+            box.innerHTML = `
+                <button class="action-btn back-btn" title="Voltar" onclick="window.location.href='/'">←</button>
+                <button class="action-btn refresh-btn" title="Atualizar" onclick="window.location.reload()">🔄</button>
+                <button class="action-btn edit-btn" title="Edição" onclick="window.location.href='/edicao'">✏️</button>
+            `;
+            return box;
+        }
+        
         function createDeviceBox(dev) {
+            // Apenas Zoom G3X
             const box = document.createElement('div');
             box.className = 'device-box';
-            
             const connectionClass = dev.connected ? 'connected' : 'disconnected';
-            
-            let zoomDisplay = '';
-            
-            if (dev.type === 'zoom_g3x') {
-                // Para Zoom G3X: apenas display, título e bullet de conexão
-                const bank = dev.bank || '-';
-                const patch = dev.last_pc !== null && dev.last_pc !== undefined ? dev.last_pc : '-';
-                
-                // Cria o texto do display: "Banco [Letra] - [Número]"
-                let displayText = '---';
-                if (dev.connected && bank !== '-' && patch !== '-') {
-                    // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
-                    const bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
-                    displayText = `Banco ${bankLetter} - ${patch}`;
-                }
-                
-                zoomDisplay = `
-                    <div class="zoom-display-wrapper">
-                        <span class="zoom-display ${dev.connected ? '' : 'off'}" id="zoom-display">${displayText}</span>
-                    </div>
-                `;
+            let displayText = '---';
+            if (dev.connected && dev.bank !== undefined && dev.last_pc !== undefined) {
+                const bankLetter = String.fromCharCode(65 + parseInt(dev.bank));
+                displayText = `${bankLetter}-${dev.last_pc}`;
             }
-            
             box.innerHTML = `
                 <div class="device-header">
-                    <div class="connection-icon ${connectionClass}"></div>
-                    <div class="device-title">${dev.name}</div>
+                    <span class="connection-icon ${connectionClass}"></span>
+                    <span class="device-title">Zoom G3X</span>
                 </div>
-                ${zoomDisplay}
+                <div class="display-screen zoom-display-text" id="zoom-display-text">${displayText}</div>
+                <div class="zoom-effects">
+                    <div class="zoom-effect" id="zoom-effect-1"></div>
+                    <div class="zoom-effect" id="zoom-effect-2"></div>
+                    <div class="zoom-effect" id="zoom-effect-3"></div>
+                    <div class="zoom-effect" id="zoom-effect-4"></div>
+                    <div class="zoom-effect" id="zoom-effect-5"></div>
+                    <div class="zoom-effect" id="zoom-effect-6"></div>
+                </div>
             `;
-            
             return box;
         }
         
         function createChocolatePedalBox(dev) {
             const box = document.createElement('div');
-            box.className = 'device-box chocolate-box';
-            
+            box.className = 'device-box';
             const connectionClass = dev.connected ? 'connected' : 'disconnected';
-            
-            // Calcula o banco atual baseado no patch ativo
             let currentBank = 0;
             if (activePatch && activePatch.input_device === 'Chocolate MIDI In' && activePatch.input_channel !== undefined) {
                 currentBank = parseInt(activePatch.input_channel);
             }
-            
-            // Renderiza o pedal do Chocolate
             renderChocolatePedal(currentBank, dev.connected);
-            
-            // Botão de conectar (só aparece se desconectado)
             const connectButton = dev.connected ? '' : `
                 <button class="chocolate-connect-btn" onclick="connectChocolate()">
                     🔌 Conectar Chocolate MIDI
                 </button>
             `;
-            
             box.innerHTML = `
                 <div class="device-header">
                     <span class="connection-icon ${connectionClass}" id="chocolate-connection-icon"></span>
                     <span class="device-title">Chocolate MIDI</span>
                 </div>
-                <div class="chocolate-pedal-visual">
-                    <div class="display-screen chocolate-display" id="chocolate-display">000</div>
-                    <div class="chocolate-leds">
-                        <div class="chocolate-led" id="led-0"></div>
-                        <div class="chocolate-led" id="led-1"></div>
-                        <div class="chocolate-led" id="led-2"></div>
-                        <div class="chocolate-led" id="led-3"></div>
-                    </div>
+                <div class="display-screen chocolate-display" id="chocolate-display">000</div>
+                <div class="pedal-leds">
+                    <div class="led" id="led-0"></div>
+                    <div class="led" id="led-1"></div>
+                    <div class="led" id="led-2"></div>
+                    <div class="led" id="led-3"></div>
                 </div>
                 ${connectButton}
             `;
-            
             return box;
         }
         
         function renderChocolatePedal(bankNumber, connected) {
-            // Sempre atualiza o display com o banco atual, independente da conexão
             updateChocolateDisplay(bankNumber);
-            
-            // Atualiza ícone de conexão
             const icon = document.getElementById('chocolate-connection-icon');
             if (icon) {
                 icon.classList.toggle('connected', connected);
@@ -844,24 +877,19 @@
             if (display) {
                 let displayText = '---';
                 if (connected && bank !== '-' && patch !== '-') {
-                    // Usa a letra do banco se disponível, senão converte o número
                     let bankLetter = bank;
                     if (typeof bank === 'number' || (typeof bank === 'string' && !isNaN(bank))) {
-                        // Converte número do banco para letra (0=A, 1=B, 2=C, etc.)
-                        bankLetter = String.fromCharCode(65 + parseInt(bank)); // A=65, B=66, etc.
+                        bankLetter = String.fromCharCode(65 + parseInt(bank));
                     }
                     displayText = `${bankLetter}-${patch}`;
                 }
-                
                 display.textContent = displayText;
                 display.classList.toggle('off', !connected);
             }
-            
-            // Atualiza os efeitos (todos ligados por padrão)
             for (let i = 1; i <= 6; i++) {
                 const effect = document.getElementById(`zoom-effect-${i}`);
                 if (effect) {
-                    effect.classList.toggle('off', !connected);
+                    effect.classList.remove('off'); // Sempre ligados por padrão
                 }
             }
         }
