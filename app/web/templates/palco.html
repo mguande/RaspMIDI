@@ -800,6 +800,7 @@
                 <button class="action-btn back-btn" title="Voltar" onclick="window.location.href='/'">←</button>
                 <button class="action-btn refresh-btn" title="Atualizar" onclick="window.location.reload()">🔄</button>
                 <button class="action-btn edit-btn" title="Edição" onclick="window.location.href='/edicao'">✏️</button>
+                <button class="action-btn fullscreen-btn" id="fullscreen-btn" title="Tela cheia" onclick="toggleFullscreen()">⛶</button>
             `;
             return box;
         }
@@ -1225,6 +1226,31 @@
                 console.error('❌ Erro ao conectar Chocolate MIDI:', error);
             }
         }
+
+        function toggleFullscreen() {
+            const btn = document.getElementById('fullscreen-btn');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                if (btn) btn.textContent = '🗗';
+                if (btn) btn.title = 'Sair do modo tela cheia';
+            } else {
+                document.exitFullscreen();
+                if (btn) btn.textContent = '⛶';
+                if (btn) btn.title = 'Entrar no modo tela cheia';
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fullscreen-btn');
+            if (!btn) return;
+            if (document.fullscreenElement) {
+                btn.textContent = '🗗';
+                btn.title = 'Sair do modo tela cheia';
+            } else {
+                btn.textContent = '⛶';
+                btn.title = 'Entrar no modo tela cheia';
+            }
+        });
 
         // Inicialização simplificada
         window.addEventListener('DOMContentLoaded', async () => {

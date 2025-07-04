@@ -2141,4 +2141,39 @@ body, .container, .content-section, .modal-content, .modal-header, .modal-footer
 .badge.input span, .badge.output span {
   font-size: 0.8em;
   font-weight: 400;
+}
+
+@font-face {
+    font-family: 'DS-Digital';
+    src: url('/static/fonts/DS-DIGI.TTF') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+.display-screen {
+    width: 90px;
+    height: 96px;
+    background: #000;
+    border: 2px solid #222;
+    border-radius: 10px;
+    padding: 0.2rem 0.5rem;
+    margin: 0.3rem 0 0.2rem 0;
+    font-family: 'DS-Digital', 'Calculator', 'Courier New', monospace;
+    font-size: 4rem;
+    color: #ffd700;
+    text-shadow:
+        0 0 8px #ffd700,
+        0 0 16px #ffd700,
+        0 0 2px #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: 2px;
+    box-shadow: 0 0 16px #ffd70044, 0 0 2px #fff2;
+    transition: color 0.2s, box-shadow 0.2s;
+}
+.display-screen.off {
+    color: #bfae5a;
+    text-shadow: 0 0 8px #bfae5a, 0 0 2px #fff;
+    opacity: 0.5;
 } 
