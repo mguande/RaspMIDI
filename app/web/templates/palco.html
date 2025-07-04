@@ -191,6 +191,14 @@
             letter-spacing: 1px;
             text-shadow: 0 0 4px #00ff88, 0 0 2px #ffd700;
         }
+        .device-title.connected {
+            color: #00ff88;
+            text-shadow: 0 0 8px #00ff88, 0 0 2px #fff;
+        }
+        .device-title.disconnected {
+            color: #ff4444;
+            text-shadow: 0 0 8px #ff4444, 0 0 2px #fff;
+        }
         
         .card-title {
             font-size: 0.8rem;
@@ -818,9 +826,9 @@
             box.innerHTML = `
                 <div class="device-header">
                     <span class="connection-icon ${connectionClass}"></span>
-                    <span class="device-title">Zoom G3X</span>
+                    <span class="device-title ${connectionClass}">Zoom G3X</span>
                 </div>
-                <div class="display-screen zoom-display-text" id="zoom-display-text">${displayText}</div>
+                <div class="display-screen" id="zoom-display-text">${displayText}</div>
                 <div class="zoom-effects">
                     <div class="zoom-effect" id="zoom-effect-1"></div>
                     <div class="zoom-effect" id="zoom-effect-2"></div>
@@ -850,9 +858,9 @@
             box.innerHTML = `
                 <div class="device-header">
                     <span class="connection-icon ${connectionClass}" id="chocolate-connection-icon"></span>
-                    <span class="device-title">Chocolate MIDI</span>
+                    <span class="device-title ${connectionClass}">Chocolate MIDI</span>
                 </div>
-                <div class="display-screen chocolate-display" id="chocolate-display">000</div>
+                <div class="display-screen" id="chocolate-display">000</div>
                 <div class="pedal-leds">
                     <div class="led" id="led-0"></div>
                     <div class="led" id="led-1"></div>

@@ -197,6 +197,10 @@ def main():
     for folder in ["app/database", "app/cache", "app/api", "app/midi"]:
         for pyfile in glob.glob(f"{folder}/*.py"):
             files_to_deploy.append((pyfile, f"{RASPBERRY_PATH}/{folder.replace('app/', 'app/')}/"))
+
+    # Adiciona todos os arquivos da pasta de fontes (não só .ttf)
+    for fontfile in glob.glob("app/web/static/fonts/*"):
+        files_to_deploy.append((fontfile, f"{RASPBERRY_PATH}/app/web/static/fonts/"))
     
     all_success = True
     for local_file, remote_path in files_to_deploy:
