@@ -1,6 +1,6 @@
 import sqlite3
 
-DB_PATH = "/home/matheus/RaspMIDI/data/midi_config.db"  # ajuste o caminho se necessário
+DB_PATH = "/home/matheus/RaspMIDI/data/raspmidi.db"  # ajuste o caminho se necessário
 
 expected_schema = {
     "patches": [
