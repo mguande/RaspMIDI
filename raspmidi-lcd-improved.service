@@ -1,0 +1,19 @@
+[Unit]
+Description=RaspMIDI LCD Improved Service
+After=network.target raspmidi.service
+Wants=raspmidi.service
+
+[Service]
+Type=simple
+User=matheus
+Group=matheus
+WorkingDirectory=/home/matheus/RaspMIDI
+Environment=PYTHONPATH=/home/matheus/RaspMIDI
+ExecStart=/home/matheus/RaspMIDI/venv/bin/python /home/matheus/RaspMIDI/app/lcd_service_improved.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 

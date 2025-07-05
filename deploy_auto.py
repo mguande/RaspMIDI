@@ -190,8 +190,19 @@ def main():
         ("app/web/templates/edicao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/palco.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/checkup.html", f"{RASPBERRY_PATH}/app/web/templates/"),
+        ("app/web/templates/palco-display.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("run.py", f"{RASPBERRY_PATH}/"),
         ("app/main.py", f"{RASPBERRY_PATH}/app/"),
+        ("lcd_complete_startup.sh", f"{RASPBERRY_PATH}/"),
+        ("test_lcd.sh", f"{RASPBERRY_PATH}/"),
+        ("raspmidi-lcd-complete.desktop", f"{RASPBERRY_PATH}/"),
+        ("app/lcd_service.py", f"{RASPBERRY_PATH}/app/"),
+        ("app/lcd_service_simple.py", f"{RASPBERRY_PATH}/app/"),
+        ("app/lcd_service_improved.py", f"{RASPBERRY_PATH}/app/"),
+        ("raspmidi-lcd.service", f"{RASPBERRY_PATH}/"),
+        ("setup_lcd_service.py", f"{RASPBERRY_PATH}/"),
+        ("raspmidi-lcd-simple.service", f"{RASPBERRY_PATH}/"),
+        ("raspmidi-lcd-improved.service", f"{RASPBERRY_PATH}/"),
     ]
     # Adiciona todos os .py das pastas backend
     for folder in ["app/database", "app/cache", "app/api", "app/midi"]:
@@ -226,6 +237,10 @@ def main():
             print("\n❌ Deploy concluído com falhas.")
     else:
         print("\n❌ Deploy falhou na cópia de arquivos!")
+
+    # Copiar lcd_service_simple_fixed.py como lcd_service_improved.py
+    print("Copiando lcd_service_simple_fixed.py como lcd_service_improved.py...")
+    subprocess.run(["scp", "app/lcd_service_simple_fixed.py", f"matheus@192.168.15.8:/home/matheus/RaspMIDI/app/lcd_service_improved.py"], check=True)
 
     return all_success
 
