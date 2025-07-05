@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=RaspMIDI Display
+Exec=chromium-browser --kiosk --disable-web-security --user-data-dir=/tmp/chrome-display http://localhost:5000/display
+Terminal=false
+X-GNOME-Autostart-enabled=true

@@ -78,6 +78,11 @@ def create_app(config_name=None):
         def palco():
             return render_template('palco.html')
         
+        # Rota de display otimizada para tela 3.5"
+        @app.route('/display')
+        def display():
+            return render_template('palco-display.html')
+        
         # Rota de verificação do sistema
         @app.route('/verificacao')
         def verificacao():

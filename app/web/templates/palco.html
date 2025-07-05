@@ -45,13 +45,27 @@
             overflow: hidden;
         }
         
-        .bank-name {
-            font-size: 1.8rem;
+        .bank-display {
+            width: 100%;
+            min-height: 72px;
+            background: #000;
+            border: 2px solid #222;
+            border-radius: 12px;
+            padding: 0.2rem 1rem;
+            margin: 0 auto;
+            font-family: 'DS-Digital', 'Calculator', 'Courier New', monospace !important;
+            font-size: 3.2rem;
             color: #ffd700;
-            margin: 0;
-            font-weight: bold;
-            text-shadow: 0 0 5px #ffd700;
-            letter-spacing: 1px;
+            text-shadow:
+                0 0 8px #ffd700,
+                0 0 16px #ffd700,
+                0 0 2px #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 3px;
+            box-shadow: 0 0 16px #ffd70044, 0 0 2px #fff2;
+            transition: color 0.2s, box-shadow 0.2s;
         }
         
         .status-grid {
@@ -632,7 +646,7 @@
 <body>
     <div class="palco-container">
         <div class="palco-header">
-            <div class="bank-name" id="bank-name">Aguardando Comando</div>
+            <div class="display-screen bank-display" id="bank-name">Aguardando Comando</div>
         </div>
         
         <div class="status-grid" id="status-grid">
