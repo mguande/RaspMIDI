@@ -36,6 +36,8 @@ class LCDServiceSimpleFixed:
         self.zoom_connected = False
         self.patch_activated = False  # Flag para indicar que um patch foi ativado
         self.last_screen_hash = None  # Para evitar flicker
+        self.last_connection_attempt = 0  # Timestamp da última tentativa de conexão
+        self.connection_interval = 10  # Intervalo em segundos entre tentativas
         
         # Configurar logging
         logging.basicConfig(
@@ -147,18 +149,44 @@ class LCDServiceSimpleFixed:
             draw = ImageDraw.Draw(image)
             center_x = LCD_WIDTH // 2
             center_y = LCD_HEIGHT // 2
+            
+            # Status dos dispositivos
+            choc_status = "✅" if self.chocolate_connected else "❌"
+            zoom_status = "✅" if self.zoom_connected else "❌"
+            
             all_connected = self.chocolate_connected and self.zoom_connected
+            
             if all_connected:
-                self.draw_smiley(draw, center_x, center_y-40, 70, happy=True, color=(0,255,0))
+                self.draw_smiley(draw, center_x, center_y-60, 60, happy=True, color=(0,255,0))
                 msg = "DISPOSITIVOS CONECTADOS"
                 color_txt = (0,255,0)
+                status_msg = "Sistema pronto!"
             else:
-                self.draw_smiley(draw, center_x, center_y-40, 70, happy=False, color=(255,0,0))
-                msg = "DISPOSITIVOS DESCONECTADOS"
-                color_txt = (255,0,0)
-            font_msg = self.font_large.font_variant(size=38) if hasattr(self.font_large, 'font_variant') else self.font_large
+                self.draw_smiley(draw, center_x, center_y-60, 60, happy=False, color=(255,0,0))
+                msg = "CONECTANDO DISPOSITIVOS"
+                color_txt = (255,255,0)  # Amarelo para indicar processo
+                status_msg = f"Chocolate: {choc_status} Zoom: {zoom_status}"
+            
+            # Texto principal
+            font_msg = self.font_large.font_variant(size=32) if hasattr(self.font_large, 'font_variant') else self.font_large
             w_msg, h_msg = self.measure_text(draw, msg, font_msg)
-            draw.text((center_x-w_msg//2, center_y+60), msg, fill=color_txt, font=font_msg)
+            draw.text((center_x-w_msg//2, center_y+20), msg, fill=color_txt, font=font_msg)
+            
+            # Status detalhado
+            font_status = self.font_large.font_variant(size=24) if hasattr(self.font_large, 'font_variant') else self.font_large
+            w_status, h_status = self.measure_text(draw, status_msg, font_status)
+            draw.text((center_x-w_status//2, center_y+70), status_msg, fill=(255,255,255), font=font_status)
+            
+            # Contador de tentativas (se não conectado)
+            if not all_connected:
+                current_time = time.time()
+                if self.last_connection_attempt > 0:
+                    next_attempt = self.last_connection_attempt + self.connection_interval - current_time
+                    if next_attempt > 0:
+                        countdown = f"Próxima tentativa: {int(next_attempt)}s"
+                        w_count, h_count = self.measure_text(draw, countdown, font_status)
+                        draw.text((center_x-w_count//2, center_y+100), countdown, fill=(150,150,150), font=font_status)
+            
             screen_hash = self.get_screen_hash(image)
             if force or screen_hash != self.last_screen_hash:
                 self.update_framebuffer(image)
@@ -201,15 +229,36 @@ class LCDServiceSimpleFixed:
             icon_y = 120
             choc_x = 60
             zoom_x = LCD_WIDTH - 60 - 70
-            self.draw_chocolate_icon(draw, choc_x, icon_y)
-            self.draw_zoom_icon(draw, zoom_x, icon_y)
-            label_font = self.font_large.font_variant(size=28) if hasattr(self.font_large, 'font_variant') else self.font_large
-            choc_label = f"{self.zoom_bank or 'A'}-{int(self.chocolate_patch) if self.chocolate_patch else '1'}"
-            zoom_label = f"{self.zoom_patch or '001'}"
-            w_choc, _ = self.measure_text(draw, choc_label, label_font)
-            w_zoom, _ = self.measure_text(draw, zoom_label, label_font)
-            draw.text((choc_x+30-w_choc//2, icon_y+40), choc_label, fill=(255, 215, 0), font=label_font)
-            draw.text((zoom_x+35-w_zoom//2, icon_y+40), zoom_label, fill=(255, 215, 0), font=label_font)
+            # Fonte dos nomes dos dispositivos: metade do tamanho do título
+            if hasattr(font_title, 'font_variant'):
+                device_font = font_title.font_variant(size=max(12, font_title.size // 2))
+            else:
+                device_font = self.font_large
+            # Nome do Chocolate
+            choc_name = "Chocolate MIDI"
+            w_choc_name, h_choc_name = self.measure_text(draw, choc_name, device_font)
+            draw.text((choc_x+30-w_choc_name//2, icon_y), choc_name, fill=(180, 255, 180), font=device_font)
+            # Nome do Zoom
+            zoom_name = "Zoom G3X"
+            w_zoom_name, h_zoom_name = self.measure_text(draw, zoom_name, device_font)
+            draw.text((zoom_x+35-w_zoom_name//2, icon_y), zoom_name, fill=(180, 200, 255), font=device_font)
+            # Fonte dos labels dos patches: metade do tamanho do título
+            if hasattr(font_title, 'font_variant'):
+                patch_font = font_title.font_variant(size=max(12, font_title.size // 2))
+            else:
+                patch_font = self.font_large
+            # Labels dos patches (agora com o mesmo tamanho do título)
+            choc_label = f"{self.chocolate_patch}" if self.chocolate_patch else "001"
+            try:
+                zoom_patch_num = int(self.zoom_patch)
+            except Exception:
+                zoom_patch_num = 1
+            zoom_label = f"{self.zoom_bank}-{zoom_patch_num:02d}"
+            self.logger.info(f"[LCD] chocolate_patch={self.chocolate_patch}, choc_label={choc_label}, zoom_bank={self.zoom_bank}, zoom_patch={self.zoom_patch}, zoom_label={zoom_label}")
+            w_choc, _ = self.measure_text(draw, choc_label, font_title)
+            w_zoom, _ = self.measure_text(draw, zoom_label, font_title)
+            draw.text((choc_x+30-w_choc//2, icon_y+40), choc_label, fill=(255, 215, 0), font=font_title)
+            draw.text((zoom_x+35-w_zoom//2, icon_y+40), zoom_label, fill=(255, 215, 0), font=font_title)
             screen_hash = self.get_screen_hash(image)
             if force or screen_hash != self.last_screen_hash:
                 self.update_framebuffer(image)
@@ -281,6 +330,77 @@ class LCDServiceSimpleFixed:
             
         except Exception as e:
             self.logger.error(f"Erro ao conectar dispositivos: {e}")
+
+    def should_attempt_connection(self):
+        """Verifica se deve tentar conectar aos dispositivos"""
+        current_time = time.time()
+        return current_time - self.last_connection_attempt >= self.connection_interval
+
+    def attempt_auto_connection(self):
+        """Tenta conectar automaticamente aos dispositivos se necessário"""
+        try:
+            # Verifica se ambos os dispositivos estão conectados
+            if self.chocolate_connected and self.zoom_connected:
+                return True  # Ambos conectados, não precisa tentar
+            
+            # Verifica se é hora de tentar novamente
+            if not self.should_attempt_connection():
+                return False
+            
+            self.logger.info("Tentando reconexão automática aos dispositivos...")
+            self.last_connection_attempt = time.time()
+            
+            # 1. Primeiro, atualiza a lista de dispositivos disponíveis
+            self.logger.info("Atualizando lista de dispositivos...")
+            try:
+                response = requests.post(
+                    f"{self.api_base_url}/midi/devices/scan",
+                    headers={"Content-Type": "application/json"},
+                    json={},
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    self.logger.info("Lista de dispositivos atualizada")
+                else:
+                    self.logger.warning(f"Erro ao atualizar lista: {response.status_code}")
+            except Exception as e:
+                self.logger.error(f"Erro ao atualizar lista de dispositivos: {e}")
+            
+            # Aguarda um pouco para o sistema processar
+            time.sleep(1)
+            
+            # 2. Lista todos os dispositivos disponíveis
+            try:
+                response = requests.get(f"{self.api_base_url}/midi/devices/list", timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get('success') and data.get('data'):
+                        devices = data['data']
+                        self.logger.info(f"Dispositivos disponíveis: {len(devices)}")
+                        for device in devices:
+                            self.logger.info(f"  - {device.get('name', 'Desconhecido')} ({device.get('type', 'N/A')})")
+            except Exception as e:
+                self.logger.error(f"Erro ao listar dispositivos: {e}")
+            
+            # 3. Tenta conectar aos dispositivos
+            self.connect_devices()
+            
+            # 4. Aguarda um pouco para os dispositivos se conectarem
+            time.sleep(3)
+            
+            # 5. Verifica o status novamente
+            self.check_device_status()
+            
+            if self.chocolate_connected and self.zoom_connected:
+                self.logger.info("✅ Ambos os dispositivos conectados com sucesso!")
+                return True
+            else:
+                self.logger.warning("❌ Ainda há dispositivos desconectados")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Erro na tentativa de conexão automática: {e}")
+            return False
     
     def check_device_status(self):
         """Verifica status dos dispositivos e atualiza variáveis"""
@@ -393,6 +513,7 @@ class LCDServiceSimpleFixed:
         """Ativa um patch (igual ao JavaScript)"""
         try:
             self.logger.info(f"Ativando patch: {patch.get('name')}")
+            self.logger.info(f"[PATCH DEBUG] Patch recebido: {patch}")
             # Ativa o patch via API
             response = requests.post(
                 f"{self.api_base_url}/midi/patch/load",
@@ -411,7 +532,8 @@ class LCDServiceSimpleFixed:
                         self.chocolate_patch = f"{bank_number:03d}"
                     # Atualiza informações da Zoom
                     if patch.get('zoom_bank') is not None and patch.get('zoom_patch') is not None:
-                        self.zoom_bank = patch.get('zoom_bank_letter', str(patch['zoom_bank']))
+                        # Usar apenas o campo correto para a letra do banco
+                        self.zoom_bank = patch.get('zoom_bank', 'A')
                         # Verifica se zoom_patch é um número válido
                         zoom_patch_value = patch.get('zoom_patch')
                         self.logger.info(f"Zoom patch value: {zoom_patch_value} (type: {type(zoom_patch_value)})")
@@ -494,12 +616,33 @@ class LCDServiceSimpleFixed:
             self.logger.info("Tela de conexão exibida - aguardando comando MIDI...")
             while self.running:
                 try:
+                    # Verifica se a API está funcionando
+                    if not self.check_api_health():
+                        self.status = "API indisponível"
+                        self.show_connecting_screen()
+                        time.sleep(5)
+                        continue
+                    
+                    # Verifica status dos dispositivos
+                    self.check_device_status()
+                    
+                    # Se não estão conectados, tenta reconexão automática
+                    if not (self.chocolate_connected and self.zoom_connected):
+                        self.attempt_auto_connection()
+                        self.show_connecting_screen()
+                        time.sleep(1)
+                        continue
+                    
+                    # Se estão conectados, processa comandos MIDI
                     self.poll_midi_commands()
+                    
                     if not self.patch_activated:
                         self.show_connecting_screen()
                     else:
                         self.update_display()
-                    time.sleep(1)  # Reduzido para 1 segundo
+                    
+                    time.sleep(0.3)
+                    
                 except Exception as e:
                     self.logger.error(f"Erro no loop principal: {e}")
                     time.sleep(1)
