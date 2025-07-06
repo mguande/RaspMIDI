@@ -39,6 +39,12 @@ class LCDServiceSimpleFixed:
         self.last_connection_attempt = 0  # Timestamp da última tentativa de conexão
         self.connection_interval = 10  # Intervalo em segundos entre tentativas
         
+        # Variáveis para shutdown
+        self.shutdown_requested = False  # Flag para indicar que shutdown foi solicitado
+        self.shutdown_confirmed = False  # Flag para indicar que shutdown foi confirmado
+        self.shutdown_timeout = 0  # Timestamp para timeout do shutdown
+        self.shutdown_timeout_duration = 10  # Tempo em segundos para confirmar shutdown
+        
         # Configurar logging
         logging.basicConfig(
             level=logging.INFO,
@@ -142,6 +148,48 @@ class LCDServiceSimpleFixed:
             except Exception:
                 return font.getsize(text)
 
+    def show_shutdown_screen(self, force=False):
+        """Mostra tela de confirmação de shutdown"""
+        try:
+            image = Image.new('RGB', (LCD_WIDTH, LCD_HEIGHT), (0, 0, 0))
+            draw = ImageDraw.Draw(image)
+            center_x = LCD_WIDTH // 2
+            center_y = LCD_HEIGHT // 2
+            
+            # Título
+            font_title = self.font_large.font_variant(size=36) if hasattr(self.font_large, 'font_variant') else self.font_large
+            title = "DESLIGAR SISTEMA?"
+            w_title, h_title = self.measure_text(draw, title, font_title)
+            draw.text((center_x-w_title//2, center_y-80), title, fill=(255,255,0), font=font_title)
+            
+            # Instruções
+            font_inst = self.font_large.font_variant(size=24) if hasattr(self.font_large, 'font_variant') else self.font_large
+            inst1 = "Banco 112: CONFIRMAR"
+            inst2 = "Banco 114: CANCELAR"
+            w_inst1, h_inst1 = self.measure_text(draw, inst1, font_inst)
+            w_inst2, h_inst2 = self.measure_text(draw, inst2, font_inst)
+            
+            draw.text((center_x-w_inst1//2, center_y-20), inst1, fill=(0,255,0), font=font_inst)
+            draw.text((center_x-w_inst2//2, center_y+20), inst2, fill=(255,0,0), font=font_inst)
+            
+            # Contador regressivo
+            if self.shutdown_timeout > 0:
+                remaining = int(self.shutdown_timeout - time.time())
+                if remaining > 0:
+                    countdown = f"Tempo restante: {remaining}s"
+                    w_count, h_count = self.measure_text(draw, countdown, font_inst)
+                    draw.text((center_x-w_count//2, center_y+60), countdown, fill=(255,255,255), font=font_inst)
+            
+            # Ícone de aviso
+            self.draw_smiley(draw, center_x, center_y-140, 40, happy=False, color=(255,255,0))
+            
+            screen_hash = self.get_screen_hash(image)
+            if force or screen_hash != self.last_screen_hash:
+                self.update_framebuffer(image)
+                self.last_screen_hash = screen_hash
+        except Exception as e:
+            self.logger.error(f"Erro na tela de shutdown: {e}")
+    
     def show_connecting_screen(self, force=False):
         """Mostra tela de status de conexão com smiley e texto grande"""
         try:
@@ -447,6 +495,28 @@ class LCDServiceSimpleFixed:
                 program = command['program']
                 self.logger.info(f"Program Change detectado: program={program}")
                 
+                # Verificar comandos de shutdown
+                self.logger.info(f"Verificando shutdown para program={program}")
+                if program == 115:  # Banco 115 - Solicitar shutdown
+                    self.logger.info("=== SHUTDOWN SOLICITADO (banco 115) ===")
+                    self.shutdown_requested = True
+                    self.shutdown_timeout = time.time() + self.shutdown_timeout_duration
+                    self.logger.info(f"shutdown_requested={self.shutdown_requested}, timeout={self.shutdown_timeout}")
+                    return
+                
+                elif program == 112 and self.shutdown_requested:  # Banco 112 - Confirmar shutdown
+                    self.logger.info("=== SHUTDOWN CONFIRMADO (banco 112) ===")
+                    self.shutdown_confirmed = True
+                    return
+                
+                elif program == 114 and self.shutdown_requested:  # Banco 114 - Cancelar shutdown
+                    self.logger.info("=== SHUTDOWN CANCELADO (banco 114) ===")
+                    self.shutdown_requested = False
+                    self.shutdown_timeout = 0
+                    return
+                
+                # Se não for comando de shutdown, processa normalmente
+                self.logger.info(f"Processando patch normal para program={program}")
                 # Atualiza o display do Chocolate
                 self.chocolate_patch = f"{program:03d}"
                 
@@ -636,7 +706,26 @@ class LCDServiceSimpleFixed:
                     # Se estão conectados, processa comandos MIDI
                     self.poll_midi_commands()
                     
-                    if not self.patch_activated:
+                    # Verificar timeout do shutdown
+                    if self.shutdown_requested and time.time() > self.shutdown_timeout:
+                        self.logger.info("Timeout do shutdown - cancelando")
+                        self.shutdown_requested = False
+                        self.shutdown_timeout = 0
+                    
+                    # Verificar se shutdown foi confirmado
+                    if self.shutdown_confirmed:
+                        self.logger.info("Shutdown confirmado - desligando sistema")
+                        # Mostrar tela de desligamento
+                        self.show_shutdown_screen(force=True)
+                        time.sleep(2)
+                        # Executar comando de shutdown
+                        os.system("sudo shutdown -h now")
+                        break
+                    
+                    # Mostrar tela apropriada
+                    if self.shutdown_requested:
+                        self.show_shutdown_screen()
+                    elif not self.patch_activated:
                         self.show_connecting_screen()
                     else:
                         self.update_display()
