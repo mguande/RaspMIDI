@@ -196,7 +196,7 @@ def main():
         ("lcd_complete_startup.sh", f"{RASPBERRY_PATH}/"),
         ("test_lcd.sh", f"{RASPBERRY_PATH}/"),
         ("raspmidi-lcd-complete.desktop", f"{RASPBERRY_PATH}/"),
-        ("app/lcd_service_improved.py", f"{RASPBERRY_PATH}/app/"),
+        ("app/lcd_service_simple_fixed.py", f"{RASPBERRY_PATH}/app/"),
         ("raspmidi-lcd.service", f"{RASPBERRY_PATH}/"),
         ("setup_lcd_service.py", f"{RASPBERRY_PATH}/"),
         ("raspmidi-lcd-simple.service", f"{RASPBERRY_PATH}/"),

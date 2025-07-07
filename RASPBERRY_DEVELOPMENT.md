@@ -315,3 +315,24 @@ chmod +x backup.sh
 ---
 
 **Dica:** Para desenvolvimento mais eficiente, use o **Método 1 (SSH Remoto no Cursor)** que permite editar código diretamente no Raspberry Pi com todas as funcionalidades do IDE! 🚀 
+
+## LCD - Versão Final Recomendada
+
+A versão final e estável do serviço LCD é:
+
+**app/lcd_service_simple_fixed.py**
+
+- O serviço systemd deve apontar para este arquivo.
+- O arquivo de serviço `/etc/systemd/system/raspmidi-lcd-improved.service` deve conter:
+  ```
+  ExecStart=/home/matheus/RaspMIDI/venv/bin/python /home/matheus/RaspMIDI/app/lcd_service_simple_fixed.py
+  ```
+- Para garantir que apenas essa versão rode:
+  1. Pare e desabilite outros serviços LCD (`raspmidi-lcd.service`, `raspmidi-lcd-simple.service`, etc).
+  2. Deixe ativo apenas o `raspmidi-lcd-improved.service` apontando para o arquivo acima.
+  3. Use o script `deploy_auto.py` para atualizar apenas esse arquivo no Raspberry Pi.
+
+Se precisar rodar manualmente:
+```bash
+python3 /home/matheus/RaspMIDI/app/lcd_service_simple_fixed.py
+``` 

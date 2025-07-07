@@ -647,8 +647,9 @@ class RaspMIDI {
         if (patch.command_type === 'pc') {
             commandTypeText = 'Program Change';
             commandIcon = '🎸';
-            if (patch.zoom_bank && patch.program !== undefined) {
-                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.program}`;
+            if (patch.zoom_bank && patch.zoom_patch !== undefined) {
+                const localPatchNumber = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${localPatchNumber}`;
             } else if (patch.program !== undefined) {
                 commandDetails = `<i class="fas fa-music"></i> Programa ${patch.program}`;
             }
@@ -673,8 +674,9 @@ class RaspMIDI {
         } else if (patch.command_type === 'effects_config') {
             commandTypeText = 'Configuração de Efeitos';
             commandIcon = '🎚️';
-            if (patch.zoom_bank && patch.program !== undefined) {
-                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.program}`;
+            if (patch.zoom_bank && patch.zoom_patch !== undefined) {
+                const localPatchNumber = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${localPatchNumber}`;
             }
         }
         
