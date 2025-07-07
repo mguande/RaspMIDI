@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=480, height=320, initial-scale=1.0">
+    <title>RaspMIDI - Display</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* CSS otimizado para display MPI3501 3.5" (480x320) */
+        body { 
+            width: 480px; 
+            height: 320px; 
+            background: linear-gradient(135deg, #0f1419 0%, #1a1e2a 50%, #0f1419 100%);
+            color: #fff; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            margin: 0;
+            padding: 5px;
+            font-size: 11px;
+            overflow: hidden;
+        }
+        
+        .palco-container { 
+            width: 470px; 
+            height: 310px; 
+            margin: 0; 
+            padding: 5px; 
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .palco-header {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            padding: 0.3rem;
+            background: linear-gradient(145deg, #1a1e2a, #23283a);
+            border-radius: 0.3rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            border: 1px solid #ffd700;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .bank-display {
+            width: 100%;
+            min-height: 48px;
+            background: #000;
+            border: 2px solid #222;
+            border-radius: 8px;
+            padding: 0.1rem 0.5rem;
+            margin: 0 auto;
+            font-family: 'DS-Digital', 'Calculator', 'Courier New', monospace !important;
+            font-size: 2.2rem;
+            color: #ffd700;
+            text-shadow:
+                0 0 6px #ffd700,
+                0 0 12px #ffd700,
+                0 0 2px #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 2px;
+            box-shadow: 0 0 12px #ffd70044, 0 0 2px #fff2;
+            transition: color 0.2s, box-shadow 0.2s;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr min-content;
+            gap: 0.3rem;
+            margin-top: 0.3rem;
+            align-items: stretch;
+            height: 200px;
+        }
+        
+        .device-box, .chocolate-box, .zoom-display {
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding-top: 0.3rem;
+        }
+        
+        .status-card {
+            background: linear-gradient(145deg, #1a1e2a, #23283a);
+            border-radius: 0.2rem;
+            padding: 0.3rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #00ff88, #00ccff);
+        }
+        
+        .buttons-card {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            align-items: flex-start;
+            justify-content: flex-start;
+            min-width: 40px;
+            width: 48px;
+        }
+        
+        .action-btn {
+            background: linear-gradient(145deg, #2a2e3a, #1a1e2a);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.2rem;
+            width: 32px;
+            height: 32px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        
+        .action-btn:hover {
+            background: linear-gradient(145deg, #3a3e4a, #2a2e3a);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.4);
+        }
+        
+        .device-box {
+            background: linear-gradient(145deg, #1a1e2a, #23283a);
+            border-radius: 0.2rem;
+            padding: 0.3rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .device-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #00ff88, #00ccff 50%, #ffd700 100%);
+        }
+        
+        .device-header {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .device-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 3px #00ff88, 0 0 1px #ffd700;
+        }
+        
+        .device-title.connected {
+            color: #00ff88;
+            text-shadow: 0 0 6px #00ff88, 0 0 1px #fff;
+        }
+        
+        .device-title.disconnected {
+            color: #ff4444;
+            text-shadow: 0 0 6px #ff4444, 0 0 1px #fff;
+        }
+        
+        .card-title {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #ffb300;
+            margin-bottom: 0.2rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .card-content {
+            text-align: center;
+        }
+        
+        .patch-name {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 0.3rem;
+            text-shadow: 0 0 8px #00ff88;
+        }
+        
+        .patch-details {
+            font-size: 0.8rem;
+            color: #ccc;
+            margin-bottom: 0.5rem;
+        }
+        
+        .device-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1px solid;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.connected {
+            background: #00ff88;
+            border-color: #00ff88;
+            box-shadow: 0 0 6px #00ff88;
+        }
+        
+        .status-indicator.disconnected {
+            background: #ff4444;
+            border-color: #ff4444;
+            box-shadow: 0 0 6px #ff4444;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .device-name {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .device-info {
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-top: 0.3rem;
+        }
+        
+        .displays-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.3rem;
+            margin-top: 0.3rem;
+        }
+        
+        .chocolate-display, .zoom-display {
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 0 0 4px #0f0;
+        }
+        
+        .chocolate-pedal {
+            background: linear-gradient(145deg, #2a2e3a, #1a1e2a);
+            border-radius: 0.2rem;
+            padding: 0.3rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .chocolate-pedal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #00ff88, #00ccff);
+        }
+        
+        .pedal-title, .zoom-title {
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #ffb300;
+            margin-bottom: 0.2rem;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .pedal-leds, .zoom-effects {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem;
+            margin-top: 0.1rem;
+            margin-bottom: 0.1rem;
+        }
+        
+        .led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+        }
+        
+        .led.on {
+            background: #00ff00;
+            border-color: #00ff00;
+            box-shadow: 0 0 6px #00ff00;
+        }
+        
+        .led.off {
+            background: #333;
+            border-color: #555;
+        }
+        
+        .zoom-display {
+            background: linear-gradient(145deg, #1a1e2a, #23283a);
+            border-radius: 0.2rem;
+            padding: 0.3rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .zoom-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #ffd700, #ff6b35);
+        }
+        
+        .no-patch-message {
+            background: linear-gradient(145deg, #3a2e2e, #4a2e2e);
+            border: 1px solid #ff6666;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            text-align: center;
+            color: #ffaaaa;
+            font-weight: bold;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 10px rgba(255,0,0,0.2);
+        }
+        
+        /* Otimizações para display pequeno */
+        .patch-name {
+            font-size: 1.2rem;
+            line-height: 1.2;
+        }
+        
+        .device-info {
+            font-size: 0.6rem;
+        }
+        
+        .card-content {
+            font-size: 0.7rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="palco-container">
+        <div class="palco-header">
+            <div class="bank-display" id="bankDisplay">BANK 01</div>
+        </div>
+        
+        <div class="status-grid">
+            <!-- Chocolate Box -->
+            <div class="chocolate-box">
+                <div class="status-card">
+                    <div class="device-header">
+                        <div class="device-title" id="chocolateStatus">CHOCOLATE</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="patch-name" id="chocolatePatch">PATCH 01</div>
+                        <div class="patch-details" id="chocolateDetails">Clean Tone</div>
+                        <div class="device-status">
+                            <div class="status-indicator" id="chocolateIndicator"></div>
+                            <div class="device-name">CHOCOLATE</div>
+                        </div>
+                        <div class="device-info" id="chocolateInfo">Port: 1 | Type: Pedal</div>
+                    </div>
+                </div>
+                
+                <div class="displays-container">
+                    <div class="chocolate-pedal">
+                        <div class="pedal-title">PEDAL</div>
+                        <div class="chocolate-display" id="chocolatePedalDisplay">00</div>
+                        <div class="pedal-leds" id="chocolateLeds">
+                            <div class="led off"></div>
+                            <div class="led off"></div>
+                            <div class="led off"></div>
+                            <div class="led off"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Zoom Box -->
+            <div class="zoom-display">
+                <div class="status-card">
+                    <div class="device-header">
+                        <div class="device-title" id="zoomStatus">ZOOM G3X</div>
+                    </div>
+                    <div class="card-content">
+                        <div class="patch-name" id="zoomPatch">PATCH 01</div>
+                        <div class="patch-details" id="zoomDetails">Clean Tone</div>
+                        <div class="device-status">
+                            <div class="status-indicator" id="zoomIndicator"></div>
+                            <div class="device-name">ZOOM G3X</div>
+                        </div>
+                        <div class="device-info" id="zoomInfo">Port: 2 | Type: MultiFX</div>
+                    </div>
+                </div>
+                
+                <div class="displays-container">
+                    <div class="zoom-display">
+                        <div class="zoom-title">EFFECTS</div>
+                        <div class="zoom-display" id="zoomEffectsDisplay">CLEAN</div>
+                        <div class="zoom-effects" id="zoomEffects">
+                            <div class="led off"></div>
+                            <div class="led off"></div>
+                            <div class="led off"></div>
+                            <div class="led off"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Buttons -->
+            <div class="buttons-card">
+                <a href="/" class="action-btn back-btn" title="Voltar">←</a>
+                <button class="action-btn refresh-btn" onclick="refreshData()" title="Atualizar">↻</button>
+                <a href="/edicao" class="action-btn edit-btn" title="Editar">✏</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Script otimizado para display
+        let refreshInterval;
+        
+        function updateDisplay(data) {
+            if (data.success) {
+                const devices = data.data;
+                
+                // Atualiza bank display
+                const bankDisplay = document.getElementById('bankDisplay');
+                if (bankDisplay) {
+                    bankDisplay.textContent = `BANK ${String(data.current_bank).padStart(2, '0')}`;
+                }
+                
+                devices.forEach(device => {
+                    if (device.name === 'CHOCOLATE') {
+                        updateChocolate(device);
+                    } else if (device.name === 'ZOOM G3X') {
+                        updateZoom(device);
+                    }
+                });
+            }
+        }
+        
+        function updateChocolate(device) {
+            const status = document.getElementById('chocolateStatus');
+            const indicator = document.getElementById('chocolateIndicator');
+            const patch = document.getElementById('chocolatePatch');
+            const details = document.getElementById('chocolateDetails');
+            const info = document.getElementById('chocolateInfo');
+            const pedalDisplay = document.getElementById('chocolatePedalDisplay');
+            const leds = document.getElementById('chocolateLeds');
+            
+            if (device.connected) {
+                status.className = 'device-title connected';
+                indicator.className = 'status-indicator connected';
+                status.textContent = 'CHOCOLATE';
+                
+                if (device.current_patch) {
+                    patch.textContent = `PATCH ${String(device.current_patch.number).padStart(2, '0')}`;
+                    details.textContent = device.current_patch.name || 'Clean Tone';
+                }
+                
+                info.textContent = `Port: ${device.port || 'N/A'} | Type: Pedal`;
+                
+                // Atualiza display do pedal
+                if (device.pedal_value !== undefined) {
+                    pedalDisplay.textContent = String(device.pedal_value).padStart(2, '0');
+                }
+                
+                // Atualiza LEDs
+                if (device.leds) {
+                    const ledElements = leds.querySelectorAll('.led');
+                    device.leds.forEach((led, index) => {
+                        if (ledElements[index]) {
+                            ledElements[index].className = `led ${led ? 'on' : 'off'}`;
+                        }
+                    });
+                }
+            } else {
+                status.className = 'device-title disconnected';
+                indicator.className = 'status-indicator disconnected';
+                status.textContent = 'CHOCOLATE';
+                patch.textContent = 'DISCONNECTED';
+                details.textContent = 'Device not found';
+                info.textContent = 'Port: N/A | Type: Pedal';
+                pedalDisplay.textContent = '--';
+            }
+        }
+        
+        function updateZoom(device) {
+            const status = document.getElementById('zoomStatus');
+            const indicator = document.getElementById('zoomIndicator');
+            const patch = document.getElementById('zoomPatch');
+            const details = document.getElementById('zoomDetails');
+            const info = document.getElementById('zoomInfo');
+            const effectsDisplay = document.getElementById('zoomEffectsDisplay');
+            const effects = document.getElementById('zoomEffects');
+            
+            if (device.connected) {
+                status.className = 'device-title connected';
+                indicator.className = 'status-indicator connected';
+                status.textContent = 'ZOOM G3X';
+                
+                if (device.current_patch) {
+                    patch.textContent = `PATCH ${String(device.current_patch.number).padStart(2, '0')}`;
+                    details.textContent = device.current_patch.name || 'Clean Tone';
+                }
+                
+                info.textContent = `Port: ${device.port || 'N/A'} | Type: MultiFX`;
+                
+                // Atualiza display de efeitos
+                if (device.current_effect) {
+                    effectsDisplay.textContent = device.current_effect.toUpperCase();
+                }
+                
+                // Atualiza LEDs de efeitos
+                if (device.effects) {
+                    const effectElements = effects.querySelectorAll('.led');
+                    device.effects.forEach((effect, index) => {
+                        if (effectElements[index]) {
+                            effectElements[index].className = `led ${effect ? 'on' : 'off'}`;
+                        }
+                    });
+                }
+            } else {
+                status.className = 'device-title disconnected';
+                indicator.className = 'status-indicator disconnected';
+                status.textContent = 'ZOOM G3X';
+                patch.textContent = 'DISCONNECTED';
+                details.textContent = 'Device not found';
+                info.textContent = 'Port: N/A | Type: MultiFX';
+                effectsDisplay.textContent = '--';
+            }
+        }
+        
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/midi/devices/status_detailed');
+                const data = await response.json();
+                updateDisplay(data);
+            } catch (error) {
+                console.error('Erro ao atualizar dados:', error);
+            }
+        }
+        
+        function startAutoRefresh() {
+            refreshData();
+            refreshInterval = setInterval(refreshData, 2000); // Atualiza a cada 2 segundos
+        }
+        
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            startAutoRefresh();
+            
+            // Atualiza quando a página ganha foco
+            window.addEventListener('focus', refreshData);
+            
+            // Para o refresh quando a página perde foco
+            window.addEventListener('blur', stopAutoRefresh);
+        });
+        
+        // Atualiza quando a página volta a ter foco
+        window.addEventListener('focus', startAutoRefresh);
+    </script>
+</body>
+</html> 

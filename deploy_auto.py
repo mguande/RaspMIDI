@@ -190,13 +190,26 @@ def main():
         ("app/web/templates/edicao.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/palco.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("app/web/templates/checkup.html", f"{RASPBERRY_PATH}/app/web/templates/"),
+        ("app/web/templates/palco-display.html", f"{RASPBERRY_PATH}/app/web/templates/"),
         ("run.py", f"{RASPBERRY_PATH}/"),
         ("app/main.py", f"{RASPBERRY_PATH}/app/"),
+        ("lcd_complete_startup.sh", f"{RASPBERRY_PATH}/"),
+        ("test_lcd.sh", f"{RASPBERRY_PATH}/"),
+        ("raspmidi-lcd-complete.desktop", f"{RASPBERRY_PATH}/"),
+        ("app/lcd_service_simple_fixed.py", f"{RASPBERRY_PATH}/app/"),
+        ("raspmidi-lcd.service", f"{RASPBERRY_PATH}/"),
+        ("setup_lcd_service.py", f"{RASPBERRY_PATH}/"),
+        ("raspmidi-lcd-simple.service", f"{RASPBERRY_PATH}/"),
+        ("raspmidi-lcd-improved.service", f"{RASPBERRY_PATH}/"),
     ]
     # Adiciona todos os .py das pastas backend
     for folder in ["app/database", "app/cache", "app/api", "app/midi"]:
         for pyfile in glob.glob(f"{folder}/*.py"):
             files_to_deploy.append((pyfile, f"{RASPBERRY_PATH}/{folder.replace('app/', 'app/')}/"))
+
+    # Adiciona todos os arquivos da pasta de fontes (não só .ttf)
+    for fontfile in glob.glob("app/web/static/fonts/*"):
+        files_to_deploy.append((fontfile, f"{RASPBERRY_PATH}/app/web/static/fonts/"))
     
     all_success = True
     for local_file, remote_path in files_to_deploy:
@@ -222,6 +235,8 @@ def main():
             print("\n❌ Deploy concluído com falhas.")
     else:
         print("\n❌ Deploy falhou na cópia de arquivos!")
+
+
 
     return all_success
 

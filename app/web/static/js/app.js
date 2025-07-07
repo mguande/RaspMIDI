@@ -597,6 +597,8 @@ class RaspMIDI {
             const container = document.getElementById('patches-container');
             if (!container) { this._renderingPatches = false; return; }
             if (!Array.isArray(this.patches)) this.patches = [];
+            console.log('🔎 [DEBUG] patches array:', this.patches);
+            console.log('🔎 [DEBUG] patches.length:', this.patches.length);
             if (this.patches.length === 0) {
                 container.innerHTML = `<div class="card text-center"><p>Nenhum patch encontrado. Crie seu primeiro patch!</p><button class="btn btn-primary" onclick="app.showNewPatchModal()">Criar Patch</button></div>`;
                 this._renderingPatches = false; return;
@@ -616,6 +618,8 @@ class RaspMIDI {
             } else if (sortMode === 'created') {
                 patches.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
             }
+            console.log('🔎 [DEBUG] patches após ordenação:', patches);
+            console.log('🔎 [DEBUG] patches a renderizar:', patches.length);
             // Visualização
             const viewMode = this._patchViewMode || 'cards';
             if (viewMode === 'list') {
@@ -643,8 +647,9 @@ class RaspMIDI {
         if (patch.command_type === 'pc') {
             commandTypeText = 'Program Change';
             commandIcon = '🎸';
-            if (patch.zoom_bank && patch.program !== undefined) {
-                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.program}`;
+            if (patch.zoom_bank && patch.zoom_patch !== undefined) {
+                const localPatchNumber = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${localPatchNumber}`;
             } else if (patch.program !== undefined) {
                 commandDetails = `<i class="fas fa-music"></i> Programa ${patch.program}`;
             }
@@ -669,8 +674,9 @@ class RaspMIDI {
         } else if (patch.command_type === 'effects_config') {
             commandTypeText = 'Configuração de Efeitos';
             commandIcon = '🎚️';
-            if (patch.zoom_bank && patch.program !== undefined) {
-                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${patch.program}`;
+            if (patch.zoom_bank && patch.zoom_patch !== undefined) {
+                const localPatchNumber = this.convertFromGlobalPatchNumber(patch.zoom_patch).patch;
+                commandDetails = `<i class="fas fa-layer-group"></i> ${patch.zoom_bank} <i class="fas fa-music"></i> ${localPatchNumber}`;
             }
         }
         
@@ -758,7 +764,7 @@ class RaspMIDI {
                         <i class="fas fa-trash"></i>
                         Deletar
                     </button>
-                    <button class="btn btn-info btn-small" title="Carregar Patch" onclick="app.activatePatch(${patch.id})"><i class="fas fa-play"></i></button>
+                    <!-- <button class="btn btn-info btn-small" title="Carregar Patch" onclick="app.activatePatch(${patch.id})"><i class="fas fa-play"></i></button> -->
                 </div>
             </div>
         `;
@@ -786,44 +792,44 @@ class RaspMIDI {
     }
     
     renderDevices() {
-        // Carrega a configuração MIDI antes de renderizar para ter os valores selecionados
         this.loadMidiConfig().then(() => {
             // Categoriza dispositivos por tipo (USB/Bluetooth) baseado no nome
             const usbDevices = [];
             const bluetoothDevices = [];
-            
+            const seenInputs = new Set();
+            const seenOutputs = new Set();
             // Processa dispositivos de entrada
             const inputDevices = this.devices.inputs || [];
             inputDevices.forEach(device => {
+                if (seenInputs.has(device.name)) return;
+                seenInputs.add(device.name);
                 const deviceInfo = {
                     ...device,
                     type: 'input',
                     connected: false // Será determinado pelo status real
                 };
-                
                 if (device.real_name.toLowerCase().includes('bt') || device.real_name.toLowerCase().includes('bluetooth')) {
                     bluetoothDevices.push(deviceInfo);
                 } else {
                     usbDevices.push(deviceInfo);
                 }
             });
-            
             // Processa dispositivos de saída
             const outputDevices = this.devices.outputs || [];
             outputDevices.forEach(device => {
+                if (seenOutputs.has(device.name)) return;
+                seenOutputs.add(device.name);
                 const deviceInfo = {
                     ...device,
                     type: 'output',
                     connected: false // Será determinado pelo status real
                 };
-                
                 if (device.real_name.toLowerCase().includes('bt') || device.real_name.toLowerCase().includes('bluetooth')) {
                     bluetoothDevices.push(deviceInfo);
                 } else {
                     usbDevices.push(deviceInfo);
                 }
             });
-            
             // Renderiza dispositivos USB
             const usbContainer = document.getElementById('usb-devices');
             if (usbContainer) {
@@ -834,7 +840,6 @@ class RaspMIDI {
                     usbContainer.innerHTML = usbHtml;
                 }
             }
-            
             // Renderiza dispositivos Bluetooth
             const btContainer = document.getElementById('bluetooth-devices');
             if (btContainer) {
@@ -851,48 +856,46 @@ class RaspMIDI {
     createDeviceCard(device) {
         const isConnected = device.connected;
         const statusClass = isConnected ? 'connected' : 'disconnected';
-        const statusText = isConnected ? 'Conectado' : 'Desconectado';
-        
-        // Verifica se o dispositivo está selecionado na configuração MIDI
+        // const statusText = isConnected ? 'Conectado' : 'Desconectado'; // Removido do layout
         const isSelectedAsInput = this.midiConfig.input_device === device.name;
         const isSelectedAsOutput = this.midiConfig.output_device === device.name;
         const isSelected = isSelectedAsInput || isSelectedAsOutput;
-        
-        // Define cor de fundo e ícone baseado no tipo de dispositivo
-        let deviceClass = '';
-        let deviceIcon = '';
-        
-        if (device.type === 'input') {
-            deviceClass = 'device-input';
-            deviceIcon = '📥'; // Ícone de entrada
-        } else if (device.type === 'output') {
-            deviceClass = 'device-output';
-            deviceIcon = '📤'; // Ícone de saída
-        }
-        
-        // Ícones FontAwesome para entrada/saída
-        const iconIn = '<i class="fa fa-sign-in-alt"></i>';
-        const iconOut = '<i class="fa fa-sign-out-alt"></i>';
-        const badgeType = device.type === 'input'
-            ? `<span class="badge input">${iconIn} <span style=\"font-size:0.8em;\">IN</span></span>`
-            : `<span class="badge output">${iconOut} <span style=\"font-size:0.8em;\">OUT</span></span>`;
-        const statusDot = `<span class="status-dot ${statusClass}"></span>`;
-        // Botão de seleção padrão
+
+        // Cores dos ícones
+        const blueDark = '#1a237e';
+        const blueLight = '#1976d2';
+        const green = '#43a047';
+        let iconBg = device.type === 'input' ? blueDark : blueLight;
+        let icon = device.type === 'input'
+            ? '<i class="fa fa-arrow-down"></i>'
+            : '<i class="fa fa-arrow-up"></i>';
+        if (isConnected) iconBg = green;
+
+        // Texto Entrada/Saída
+        const typeText = device.type === 'input' ? 'Entrada' : 'Saída';
+
+        // Botão
         let buttonHtml = '';
         if (isSelected) {
-            buttonHtml = `<button class='select-btn selected' disabled><i class='fa fa-check'></i> Selecionado</button>`;
+            buttonHtml = `<button class='select-btn selected' disabled><i class='fa fa-check'></i> Conectado</button>`;
         } else {
-            buttonHtml = `<button class='select-btn' onclick=\"app.selectDevice('${device.name}', '${device.type}')\"><i class='fa fa-mouse-pointer'></i> Selecionar</button>`;
+            buttonHtml = `<button class='select-btn' onclick="app.selectDevice('${device.name}', '${device.type}')"><i class='fa fa-mouse-pointer'></i> Selecionar</button>`;
         }
+
+        // Card layout
         return `
             <div class="device-card ${statusClass} ${isSelected ? 'selected' : ''}">
-                <div class="device-header">
-                    <span class="device-name" style="white-space:normal;">${device.real_name || device.name}</span>
-                    ${statusDot}
-                    ${badgeType}
+                <div class="device-header" style="justify-content: flex-start; gap: 12px;">
+                    <div class="device-icon" style="background:${iconBg};width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:1.2em;color:#fff;box-shadow:0 2px 8px #0002;">
+                        ${icon}
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:2px;">
+                        <div class="device-name" title="${device.real_name || device.name}" style="font-size:0.98em;font-weight:600;max-width:120px;">${device.real_name || device.name}</div>
+                        <div class="device-type" style="font-size:0.85em;color:#b0b8d0;max-width:120px;">${typeText}</div>
+                    </div>
                 </div>
-                <div class="device-details">${device.port || ''}</div>
-                ${buttonHtml}
+                <div class="device-details" style="margin:6px 0 0 0;font-size:0.85em;color:#bbb;max-width:160px;">${device.port ? device.port : ''}</div>
+                <div style="margin-top:10px;">${buttonHtml}</div>
             </div>
         `;
     }
@@ -901,29 +904,29 @@ class RaspMIDI {
         // Preenche selects de entrada e saída
         const inputSelect = document.getElementById('input-device');
         const outputSelect = document.getElementById('output-device');
-        
         if (inputSelect) {
             inputSelect.innerHTML = '<option value="">Selecione...</option>';
-            // Usa a estrutura correta: inputs e outputs
             const inputDevices = this.devices.inputs || [];
+            const seenInputs = new Set();
             inputDevices.forEach(device => {
+                if (seenInputs.has(device.name)) return;
+                seenInputs.add(device.name);
                 const selected = device.name === this.midiConfig.input_device ? 'selected' : '';
                 inputSelect.innerHTML += `<option value="${device.name}" ${selected}>${device.name}</option>`;
             });
         }
-        
         if (outputSelect) {
             outputSelect.innerHTML = '<option value="">Selecione...</option>';
-            // Usa a estrutura correta: inputs e outputs
             const outputDevices = this.devices.outputs || [];
+            const seenOutputs = new Set();
             outputDevices.forEach(device => {
+                if (seenOutputs.has(device.name)) return;
+                seenOutputs.add(device.name);
                 const selected = device.name === this.midiConfig.output_device ? 'selected' : '';
                 outputSelect.innerHTML += `<option value="${device.name}" ${selected}>${device.name}</option>`;
             });
         }
-        
         // Não chama renderDevices() aqui para evitar duplicação
-        // renderDevices() já é chamada em loadDevices()
     }
     
     updateStatusDisplay() {
@@ -3499,6 +3502,7 @@ class RaspMIDI {
                     <button class="btn btn-success btn-small" onclick="app.loadPatch(${patch.id})">Carregar</button>
                     <button class="btn btn-primary btn-small" onclick="app.editPatch(${patch.id})">Editar</button>
                     <button class="btn btn-danger btn-small" onclick="app.deletePatch(${patch.id})">Deletar</button>
+                    <!--button class="btn btn-info btn-small" title="Carregar Patch" onclick="app.activatePatch(${patch.id})"><i class="fas fa-play"></i></button-- >
                 </td>
             </tr>
         `;

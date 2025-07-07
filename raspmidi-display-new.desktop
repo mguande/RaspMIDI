@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=RaspMIDI Display
+Exec=/usr/local/bin/lcd_startup.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true
